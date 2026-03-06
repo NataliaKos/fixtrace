@@ -1,0 +1,40 @@
+steps:
+  # Build backend Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/fixtrace-backend:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/fixtrace-backend:latest'
+      - './backend'
+
+  # Push image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - '--all-tags'
+      - 'gcr.io/$PROJECT_ID/fixtrace-backend'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - fixtrace-backend
+      - '--image=gcr.io/$PROJECT_ID/fixtrace-backend:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--memory=1Gi'
+      - '--cpu=1'
+      - '--timeout=300'
+      - '--set-env-vars=GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=us-central1,GCS_BUCKET_NAME=fixtrace-uploads-$PROJECT_ID,GOOGLE_GENAI_USE_VERTEXAI=true'
+
+images:
+  - 'gcr.io/$PROJECT_ID/fixtrace-backend:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/fixtrace-backend:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

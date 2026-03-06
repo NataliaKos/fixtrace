@@ -1,0 +1,131 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+
+:host {
+  display: block;
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+}
+
+.font-serif {
+  font-family: "Roboto", sans-serif;
+}
+
+.bg-navy {
+  background-color: rgba(18, 24, 38, 0.85);
+  color: #ffffff;
+}
+
+.text-brand-blue {
+  color: #3b82f6;
+}
+
+.text-navy {
+  color: #121826;
+}
+
+.btn-dark-pill {
+  background-color: #0d121c;
+  border: 1px solid #1e293b;
+  color: #94a3b8;
+  border-radius: 9999px;
+  padding: 0.6rem 2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+}
+
+.btn-dark-pill:hover {
+  background-color: #1e293b;
+  color: #ffffff;
+}
+
+.btn-read-more {
+  background-color: transparent;
+  border: 1px solid #cbd5e1;
+  color: #779cd7;
+  border-radius: 9999px;
+  padding: 0.75rem 2rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s;
+}
+
+.btn-read-more:hover {
+  background-color: #f8fafc;
+}
+
+.btn-orange {
+  background-color: #f97316;
+  color: white;
+  border-radius: 9999px;
+  padding: 0.75rem 2.5rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.39);
+  transition: all 0.2s;
+}
+
+.btn-orange:hover {
+  background-color: #ea580c;
+  box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
+}
+
+.card-dark {
+  background-color: rgba(15, 20, 32, 0.85);
+  border: 1px solid rgba(30, 41, 59, 0.6);
+  border-radius: 1.5rem;
+}
+
+.gradient-banner {
+  background: linear-gradient(135deg, rgba(251, 207, 232, 0.85) 0%, rgba(253, 224, 71, 0.85) 100%);
+}
+
+.robot-bg {
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.85) 0%, rgba(251, 207, 232, 0.85) 100%);
+}
+
+.overlap-images-container {
+  position: relative;
+  height: 400px;
+}
+
+.overlap-top {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 70%;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+}
+
+.overlap-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60%;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 1;
+}
+
+.wavy-footer {
+  background: rgba(248, 250, 252, 0.85);
+  position: relative;
+  overflow: hidden;
+}
+
+.wavy-footer::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(236, 249, 255, 0.5) 0%, rgba(248, 250, 252, 0.5) 50%);
+  opacity: 0.5;
+}

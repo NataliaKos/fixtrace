@@ -1,0 +1,321 @@
+@import "tailwindcss";
+
+@source "./app/**/*.ts";
+@source "./index.html";
+
+@plugin "daisyui" {
+  themes: dark --default, light;
+}
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* Custom animations for microinteractions */
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@utility animate-msg-in {
+  animation: msg-in 0.18s ease-out both;
+}
+
+@utility animate-fade-up {
+  animation: fade-up 0.22s ease-out both;
+}
+
+@utility animate-fade-in {
+  animation: fade-in 0.15s ease-out both;
+}
+
+/* File upload drop zone: restore dark glassmorphism in dark theme */
+[data-theme="dark"] .upload-drop-zone {
+  background: linear-gradient(135deg, rgba(30,35,50,0.85), rgba(20,22,35,0.95)) !important;
+  border-color: rgba(100,130,180,0.18) !important;
+  box-shadow: 0 0 40px 2px rgba(80,120,200,0.06), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(60% 0 0 / 0.18); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(60% 0 0 / 0.32); }
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Demo Tour                                                                   */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+/* Animations */
+@keyframes dt-pop-in {
+  from { opacity: 0; scale: 0.9; }
+  to   { opacity: 1; scale: 1; }
+}
+@keyframes dt-spotlight-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Backdrop — thin, transparent div that catches backdrop clicks.
+   The actual dark overlay is rendered by the spotlight's box-shadow. */
+.dt-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  cursor: default;
+}
+
+/* Spotlight — sits over the highlighted element; box-shadow creates the
+   dark vignette around the rest of the page. pointer-events: none so the
+   highlighted element remains fully interactive beneath it. */
+.dt-spotlight {
+  position: fixed;
+  z-index: 9001;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 3px var(--color-primary),
+    0 0 0 9999px rgba(0, 0, 0, 0.62);
+  transition:
+    top    0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    left   0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    width  0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: dt-spotlight-in 0.18s ease both;
+}
+
+/* Popover card */
+.dt-popover {
+  position: fixed;
+  z-index: 9002;
+  background: var(--color-base-100);
+  border: 1px solid color-mix(in oklch, var(--color-base-content) 12%, transparent);
+  border-radius: 16px;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.12),
+    0 12px 40px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+  animation: dt-pop-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  max-height: calc(100dvh - 24px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.dt-popover__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+}
+
+.dt-popover__step-badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-base-content);
+  opacity: 0.75;
+  line-height: 1;
+}
+
+.dt-popover__step-total {
+  opacity: 0.45;
+}
+
+.dt-popover__close {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in oklch, var(--color-base-content) 40%, transparent);
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+  flex-shrink: 0;
+}
+.dt-popover__close:hover {
+  background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+  color: var(--color-base-content);
+}
+
+/* Progress bar */
+.dt-popover__progress {
+  height: 2px;
+  background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+  margin: 0 14px;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.dt-popover__progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 99px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Body */
+.dt-popover__body {
+  padding: 14px 16px 12px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dt-popover__title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-base-content);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.dt-popover__desc {
+  font-size: 12.5px;
+  color: color-mix(in oklch, var(--color-base-content) 70%, transparent);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.dt-popover__tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  background: color-mix(in oklch, var(--color-primary) 8%, transparent);
+  border-radius: 8px;
+  font-size: 11.5px;
+  color: color-mix(in oklch, var(--color-primary) 85%, var(--color-base-content));
+  line-height: 1.5;
+}
+
+.dt-popover__tip-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--color-primary);
+  opacity: 0.8;
+}
+
+/* Footer */
+.dt-popover__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 13px;
+  border-top: 1px solid color-mix(in oklch, var(--color-base-content) 7%, transparent);
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.dt-popover__skip-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: color-mix(in oklch, var(--color-base-content) 38%, transparent);
+  padding: 4px 2px;
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+.dt-popover__skip-btn:hover {
+  color: color-mix(in oklch, var(--color-base-content) 65%, transparent);
+}
+
+.dt-popover__nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dt-popover__nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 5px 12px;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+  white-space: nowrap;
+  line-height: 1;
+}
+.dt-popover__nav-btn:active {
+  transform: scale(0.96);
+}
+
+.dt-popover__nav-btn--prev {
+  background: color-mix(in oklch, var(--color-base-content) 7%, transparent);
+  color: color-mix(in oklch, var(--color-base-content) 65%, transparent);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  padding: 0;
+}
+.dt-popover__nav-btn--prev:hover {
+  background: color-mix(in oklch, var(--color-base-content) 12%, transparent);
+  color: var(--color-base-content);
+}
+
+.dt-popover__nav-btn--next {
+  background: var(--color-primary);
+  color: var(--color-primary-content, #fff);
+  padding: 6px 14px;
+  min-width: 72px;
+}
+.dt-popover__nav-btn--next:hover {
+  filter: brightness(1.08);
+}
+
+/* Help / restart "?" button in the navbar */
+.demo-tour-help-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: color-mix(in oklch, var(--color-base-content) 45%, transparent);
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.demo-tour-help-btn:hover {
+  background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+  color: var(--color-base-content);
+}
+/* Pulse animation: used when the tour is fresh/new */
+.demo-tour-help-btn--pulse {
+  animation: dt-help-pulse 2.4s ease-in-out 1.5s 3;
+}
+@keyframes dt-help-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--color-primary) 0%, transparent); }
+  50%       { box-shadow: 0 0 0 5px color-mix(in oklch, var(--color-primary) 30%, transparent); }
+}

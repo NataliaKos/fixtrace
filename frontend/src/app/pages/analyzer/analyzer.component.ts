@@ -1,0 +1,439 @@
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
+
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { VoiceService } from '../../services/voice.service';
+import { IssuesListComponent } from '../../components/issues-list/issues-list.component';
+import { FileUploadComponent } from '../../components/file-upload/file-upload.component';
+import { CodeInputComponent } from '../../components/code-input/code-input.component';
+import { FileTreeComponent } from '../../components/file-tree/file-tree.component';
+import { DiffViewerComponent } from '../../components/diff-viewer/diff-viewer.component';
+import { MonacoEditorComponent } from '../../components/monaco-editor/monaco-editor.component';
+import { AnalyzerStateService } from '../../state/analyzer-state.service';
+import { ChatPanelBridgeService } from '../../services/chat-panel-bridge.service';
+import { ContextImage } from '../../services/live-audio-ws.service';
+import { Subscription } from 'rxjs';
+import { HeaderComponent } from '../../components/header/header';
+
+@Component({
+  selector: 'app-analyzer',
+  standalone: true,
+  imports: [
+    FormsModule,
+    RouterLink,
+    IssuesListComponent,
+    FileUploadComponent,
+    CodeInputComponent,
+    FileTreeComponent,
+    DiffViewerComponent,
+    MonacoEditorComponent,
+    HeaderComponent,
+  ],
+  template: `
+    <app-header />>
+    <div
+      [class]="state.hasSidebar()
+        ? 'max-w-7xl mx-auto px-6 py-10 flex gap-6 animate-in'
+        : 'max-w-7xl mx-auto px-6 py-10 flex flex-col gap-8 animate-in'"
+    >
+
+      <!-- Sidebar (only when folder/github with multiple files) -->
+      @if (state.hasSidebar()) {
+        <aside class="w-64 shrink-0 flex flex-col gap-3 sticky top-6 self-start">
+          <label class="text-xs font-medium tracking-wide text-base-content/40 uppercase">Project files</label>
+          <div class="bg-base-200/40 rounded-xl border border-base-300/60 p-2">
+            <app-file-tree
+              [files]="state.codeFiles()"
+              [selectedPath]="state.selectedFilePath() ?? ''"
+              (fileSelected)="state.selectedFilePath.set($event)"
+            />
+          </div>
+        </aside>
+      }
+
+      <!-- Main content column -->
+      <div class="flex-1 min-w-0 flex flex-col gap-8">
+
+        <!-- Page header -->
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center gap-3 mb-1">
+            <a routerLink="/" class="text-base-content/30 hover:text-base-content/70 transition-colors duration-150">
+              <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </a>
+            <span class="text-base-content/20 text-sm">/</span>
+            <span class="text-sm text-base-content/40">Analyzer</span>
+          </div>
+          <h1 class="text-2xl font-semibold tracking-tight text-base-content">Analyze your app</h1>
+          <p class="text-sm text-base-content/45 mt-0.5">Upload a screenshot, provide code, or connect a repo to get actionable feedback.</p>
+        </div>
+
+        <!-- Mode toggle -->
+        <div class="flex flex-col gap-3">
+          <label class="text-xs font-medium tracking-wide text-base-content/40 uppercase">Analysis type</label>
+          <div class="flex items-center gap-1 p-1 bg-base-200/60 rounded-xl w-fit" data-tour="mode-toggle">
+            <button
+              class="px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200"
+              [class]="state.mode() === 'ui'
+                ? 'bg-primary text-primary-content shadow-sm'
+                : 'text-base-content/50 hover:text-base-content/80'"
+              (click)="state.setMode('ui')"
+            >
+              <span class="flex items-center gap-2">
+                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2.5"/><path d="M3 9h18M9 21V9"/></svg>
+                UI Analyzer
+              </span>
+            </button>
+            <button
+              class="px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200"
+              [class]="state.mode() === 'enhance'
+                ? 'bg-secondary text-secondary-content shadow-sm'
+                : 'text-base-content/50 hover:text-base-content/80'"
+              (click)="state.setMode('enhance')"
+            >
+              <span class="flex items-center gap-2">
+                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                UI Enhancement
+              </span>
+            </button>
+            <button
+              class="px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200"
+              [class]="state.mode() === 'perf'
+                ? 'bg-warning text-warning-content shadow-sm'
+                : 'text-base-content/50 hover:text-base-content/80'"
+              (click)="state.setMode('perf')"
+            >
+              <span class="flex items-center gap-2">
+                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                Performance
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Upload & Generated Image -->
+        <div class="flex flex-col gap-3">
+          <label class="text-xs font-medium tracking-wide text-base-content/40 uppercase">
+            {{ state.mode() === 'ui' || state.mode() === 'enhance' ? 'Screenshot or Screen recording' : 'Report or screenshot' }}
+            <span class="normal-case font-normal text-base-content/30 ml-1">— optional</span>
+          </label>
+          <div class="flex gap-4 items-start" data-tour="file-upload">
+            <div class="flex-1">
+              @if (state.mode() === 'ui' || state.mode() === 'enhance') {
+                <app-file-upload
+                  accept="image/*,video/*"
+                  label="Drop a UI screenshot or screen recording here, or click to browse"
+                  (fileUploaded)="state.onFileUploaded($event)"
+                />
+              } @else {
+                <app-file-upload
+                  accept="application/json,image/*,video/*"
+                  label="Drop a Lighthouse JSON, DevTools trace, or screenshot"
+                  (fileUploaded)="state.onFileUploaded($event)"
+                />
+                <p class="text-xs text-base-content/25 mt-2">Accepts: Lighthouse JSON, DevTools trace, HAR, screenshots</p>
+              }
+            </div>
+
+            @if (state.mode() === 'enhance' && state.enhanceResult()?.imageUrl) {
+              <div class="flex-1 relative group">
+                <img [src]="state.enhanceResult()!.imageUrl" alt="Generated UI Design" class="rounded-xl border border-base-300/60 w-full h-auto shadow-sm" />
+                <a
+                  [href]="state.enhanceResult()!.imageUrl"
+                  download="enhanced-ui.jpg"
+                  class="btn btn-sm btn-circle btn-neutral absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md"
+                  title="Download Image"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                </a>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Code input -->
+        <app-code-input
+          (filesChanged)="state.onCodeFilesChanged($event)"
+          (inputMethodChanged)="state.codeInputMethod.set($event)"
+          data-tour="code-input"
+        />
+
+        <!-- Selected file preview (when sidebar is active) -->
+        @if (state.hasSidebar() && state.selectedFilePath()) {
+          <div class="flex flex-col gap-2">
+            <span class="text-xs font-mono text-base-content/40">{{ state.selectedFilePath() }}</span>
+            <app-monaco-editor
+              [value]="state.getSelectedFileContent()"
+              [language]="state.getSelectedFileLanguage()"
+              [readOnly]="true"
+              height="400px"
+            />
+          </div>
+        }
+
+        <!-- Try These Prompts -->
+        <div class="flex flex-col gap-2 p-4 bg-base-200/40 rounded-xl border border-base-300/40">
+          <span class="text-xs font-medium tracking-wide text-base-content/50 uppercase">Try These Prompts</span>
+          <div class="flex flex-wrap gap-2">
+            @for (prompt of state.currentSamplePrompts(); track prompt) {
+              <button
+                [class]="'btn btn-xs btn-ghost bg-base-100 rounded-lg font-normal text-base-content/70 ' + (state.mode() === 'ui' ? 'hover:bg-primary/10 hover:text-primary' : state.mode() === 'enhance' ? 'hover:bg-secondary/10 hover:text-secondary' : 'hover:bg-warning/10 hover:text-warning')"
+                (click)="state.userPrompt.set(prompt)"
+              >
+                {{ prompt }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Context -->
+        <div class="flex flex-col gap-3" data-tour="context-area">
+          <label class="text-xs font-medium tracking-wide text-base-content/40 uppercase">
+            Context
+            <span class="normal-case font-normal text-base-content/30 ml-1">— optional (type or use voice)</span>
+          </label>
+          <div class="relative">
+            <textarea
+              class="textarea textarea-bordered w-full h-24 text-sm resize-none bg-base-100 rounded-xl border-base-300/60 placeholder:text-base-content/25 pr-14"
+              [class.focus:border-primary/40]="state.mode() === 'ui'"
+              [class.focus:border-secondary/40]="state.mode() === 'enhance'"
+              [class.focus:border-warning/40]="state.mode() === 'perf'"
+              [placeholder]="state.mode() === 'ui'
+                ? 'Define analysis scope: e.g., Improve forms for accessibility and mobile responsiveness. (type or use voice)'
+                : state.mode() === 'enhance'
+                ? 'Describe the new design: e.g., Make it look like a modern dashboard with a dark theme and neon accents.'
+                : 'e.g. Focus on LCP — this is an Angular SPA with lazy-loaded routes'"
+              [ngModel]="state.userPrompt()"
+              (ngModelChange)="state.userPrompt.set($event)"
+              [disabled]="state.transcribing()"
+            ></textarea>
+            <!-- Voice record button (overlaid on textarea) -->
+            <button
+              class="btn btn-circle btn-sm absolute right-2 top-2 transition-all duration-200"
+              [class.btn-error]="voiceService.isRecording()"
+              [class.btn-ghost]="!voiceService.isRecording()"
+              [class.animate-pulse]="voiceService.isRecording()"
+              [disabled]="state.transcribing() || state.analyzing()"
+              (click)="toggleVoice()"
+              [title]="voiceService.isRecording() ? 'Stop recording' : 'Record voice context'"
+            >
+              @if (state.transcribing()) {
+                <span class="loading loading-spinner loading-xs"></span>
+              } @else {
+                {{ voiceService.isRecording() ? '⏹' : '🎤' }}
+              }
+            </button>
+          </div>
+
+          <!-- Recording indicator -->
+          @if (voiceService.isRecording()) {
+            <div class="flex items-center gap-3 px-3 py-2 bg-error/10 rounded-lg border border-error/30 animate-in">
+              <span class="inline-block w-3 h-3 rounded-full bg-error animate-pulse"></span>
+              <span class="text-sm font-medium text-error">Recording…</span>
+              <span class="text-xs text-base-content/60 tabular-nums">{{ formatDuration(voiceService.recordingDuration()) }}</span>
+              <div class="flex items-center gap-0.5 h-6 ml-2">
+                @for (bar of waveformBars; track bar) {
+                  <div
+                    class="w-1 rounded-full bg-error transition-all duration-75"
+                    [style.height.px]="4 + voiceService.audioLevel() * bar * 20"
+                  ></div>
+                }
+              </div>
+              <span class="text-xs text-base-content/40 ml-auto">Click ⏹ to stop & transcribe</span>
+            </div>
+          }
+
+          @if (state.transcribing()) {
+            <div class="flex items-center gap-2 text-xs text-base-content/50">
+              <span class="loading loading-spinner loading-xs"></span>
+              Transcribing your voice…
+            </div>
+          }
+        </div>
+
+        <!-- Action -->
+        <div class="flex items-center gap-3" data-tour="run-analysis">
+          <button
+            class="btn btn-sm rounded-lg h-9 min-h-0 px-5 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+            [class.btn-primary]="state.mode() === 'ui'"
+            [class.btn-secondary]="state.mode() === 'enhance'"
+            [class.btn-warning]="state.mode() === 'perf'"
+            [disabled]="(!state.uploadedFile() && state.codeFiles().length === 0 && state.mode() !== 'enhance') || state.analyzing()"
+            (click)="state.analyze()"
+          >
+            @if (state.analyzing()) {
+              <span class="loading loading-spinner loading-xs mr-1"></span>
+              Analyzing…
+            } @else {
+              Run analysis
+            }
+          </button>
+          @if (state.uploadedFile() && !state.analyzing()) {
+            <span class="text-xs text-base-content/30">{{ state.uploadedFile()!.fileName }}</span>
+          }
+          @if (state.codeFiles().length > 0 && !state.analyzing()) {
+            <span class="text-xs text-base-content/30">{{ state.codeFiles().length }} code file{{ state.codeFiles().length !== 1 ? 's' : '' }}</span>
+          }
+        </div>
+
+        <!-- Error -->
+        @if (state.error()) {
+          <div class="flex items-start gap-3 p-4 bg-error/8 border border-error/20 rounded-xl text-sm text-error animate-in">
+            <svg class="w-4 h-4 mt-0.5 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+            <div class="flex-1">
+              <span>{{ state.error() }}</span>
+              @if (state.mode() === 'enhance') {
+                <button class="btn btn-xs btn-outline btn-error ml-3" (click)="state.analyze()">Retry</button>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Results -->
+        @if (state.result()) {
+          <div class="flex flex-col gap-6 animate-in">
+            <div class="border-t border-base-300/60 pt-8 flex flex-col gap-6">
+
+              <!-- Score (UI mode only) + summary -->
+              <div class="flex items-start gap-6 flex-wrap">
+                @if (state.mode() === 'ui' && state.uiResult()) {
+                  <div class="flex flex-col gap-1 shrink-0">
+                    <span class="text-xs font-medium tracking-wide text-base-content/30 uppercase">UI Score</span>
+                    <span
+                      class="text-4xl font-semibold tabular-nums"
+                      [class.text-success]="state.uiResult()!.score >= 70"
+                      [class.text-warning]="state.uiResult()!.score >= 40 && state.uiResult()!.score < 70"
+                      [class.text-error]="state.uiResult()!.score < 40"
+                    >{{ state.uiResult()!.score }}<span class="text-base font-normal text-base-content/30">/100</span></span>
+                  </div>
+                }
+                <div class="flex-1 min-w-48">
+                  @if (state.mode() === 'perf') {
+                    <span class="text-xs font-medium tracking-wide text-base-content/30 uppercase block mb-1">Summary</span>
+                  }
+                  <p class="text-sm text-base-content/60 leading-relaxed">{{ state.result()!.summary }}</p>
+                </div>
+              </div>
+
+              <!-- Issues -->
+              @if (state.mode() !== 'enhance') {
+                <app-issues-list [issues]="$any(state.result())?.issues || []" [type]="state.mode() === 'ui' ? 'ui' : 'perf'" />
+              }
+
+              <!-- Diff output (code analysis or enhance) -->
+              @if (state.codeResult()?.patches?.length || state.enhanceResult()?.patches?.length) {
+                <div class="border-t border-base-300/60 pt-6">
+                  <app-diff-viewer
+                    [patches]="state.codeResult()?.patches || state.enhanceResult()!.patches"
+                    [originalFiles]="state.codeFiles()"
+                  />
+                </div>
+              }
+
+              <!-- Continue CTA -->
+              <div class="pt-2 border-t border-base-300/60">
+                <button
+                  (click)="openChatWithContext()"
+                  class="inline-flex items-center gap-2 text-sm text-base-content/40 hover:text-base-content/80 transition-colors duration-150 group cursor-pointer bg-transparent border-none p-0"
+                >
+                  <svg class="w-4 h-4 text-success/60 group-hover:text-success transition-colors duration-150" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                  Discuss these results with the AI agent →
+                </button>
+              </div>
+
+            </div>
+          </div>
+        }
+
+      </div>
+    </div>
+  `,
+})
+export class AnalyzerPageComponent implements OnInit, OnDestroy {
+  readonly state = inject(AnalyzerStateService);
+  readonly voiceService = inject(VoiceService);
+  private readonly bridge = inject(ChatPanelBridgeService);
+
+  readonly waveformBars = [0.4, 0.7, 1.0, 0.6, 0.9, 0.5, 0.8, 1.0, 0.3, 0.7, 0.6, 0.9];
+
+  private audioSub?: Subscription;
+
+  ngOnInit(): void {
+    this.audioSub = this.voiceService.audioReady$.subscribe(({ base64, mimeType }) => {
+      this.state.transcribeAndAppend(base64, mimeType);
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.audioSub?.unsubscribe();
+  }
+
+  toggleVoice(): void {
+    this.voiceService.toggleRecording();
+  }
+
+  formatDuration(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  async openChatWithContext(): Promise<void> {
+    // ── 1. Build summary text ──────────────────────────────────────────────
+    const baseText = this.state.buildContextText(this.state.mode() as any) ?? '';
+
+    // ── 2. Append full code (original + suggested) ─────────────────────────
+    const codeLines: string[] = [];
+    const CHAR_LIMIT = 2500;
+
+    for (const file of this.state.codeFiles().slice(0, 3)) {
+      const snippet = file.content.length > CHAR_LIMIT
+        ? file.content.slice(0, CHAR_LIMIT) + '\n// … (truncated)'
+        : file.content;
+      codeLines.push(`\n### Original: ${file.path}\n\`\`\`${file.language ?? ''}\n${snippet}\n\`\`\``);
+    }
+
+    const patches = this.state.codeResult()?.patches ?? this.state.enhanceResult()?.patches ?? [];
+    for (const patch of patches.slice(0, 3)) {
+      const snippet = patch.modified.length > CHAR_LIMIT
+        ? patch.modified.slice(0, CHAR_LIMIT) + '\n// … (truncated)'
+        : patch.modified;
+      codeLines.push(`\n### Suggested: ${patch.filePath}\n\`\`\`\n${snippet}\n\`\`\``);
+    }
+
+    const fullText = codeLines.length
+      ? `${baseText}\n\n## Full Code Context\n${codeLines.join('\n')}`
+      : baseText;
+
+    // ── 3. Build image attachments ─────────────────────────────────────────
+    const images: ContextImage[] = [];
+
+    // Original user screenshot (already on GCS)
+    const uploaded = this.state.uploadedFile();
+    if (uploaded?.gcsUri && uploaded.mimeType.startsWith('image/')) {
+      images.push({ gcsUri: uploaded.gcsUri, mimeType: uploaded.mimeType });
+    }
+
+    // AI-generated enhanced UI image — fetch and encode as base64
+    const enhancedUrl = this.state.enhanceResult()?.imageUrl;
+    if (enhancedUrl) {
+      try {
+        const resp  = await fetch(enhancedUrl);
+        const buf   = await resp.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary  = '';
+        const CHUNK = 0x8000;
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+          binary += String.fromCharCode(...(bytes.subarray(i, i + CHUNK) as unknown as number[]));
+        }
+        images.push({ data: btoa(binary), mimeType: resp.headers.get('content-type') ?? 'image/jpeg' });
+      } catch { /* skip if fetch fails */ }
+    }
+
+    // ── 4. Open the panel ─────────────────────────────────────────────────
+    if (fullText) {
+      this.bridge.openWithContext(fullText, images);
+    } else {
+      this.bridge.open();
+    }
+  }
+}
