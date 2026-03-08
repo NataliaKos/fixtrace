@@ -9,6 +9,8 @@ A multimodal AI agent powered by **Gemini 2.0 Flash** that lets frontend develop
 - **📸 UI Refactor** — Upload a screenshot → get accessibility, UX, and code refactor suggestions ranked by severity
 - **⚡ Performance Debugger** — Upload a Lighthouse JSON or DevTools trace → get Core Web Vitals diagnosis and Angular-specific fixes
 - **🎤 Live Agent** — Chat with the AI agent via text (voice capture ready); attach files directly in the conversation
+
+COMMING SOON:
 - **📋 Issues Board** — Collapsible issues with severity badges, location context, and code snippets
 
 ## Tech Stack

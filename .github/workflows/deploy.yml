@@ -1,0 +1,90 @@
+name: Deploy to Google Cloud
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # ── Deploy backend to Cloud Run ──────────────────────────────────────────────
+  deploy-backend:
+    name: Backend → Cloud Run
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker --quiet
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/fixtrace-backend:${{ github.sha }} \
+            -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/fixtrace-backend:latest \
+            ./backend
+
+      - name: Push image to Container Registry
+        run: |
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/fixtrace-backend:${{ github.sha }}
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/fixtrace-backend:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy fixtrace-backend \
+            --image=gcr.io/${{ secrets.GCP_PROJECT_ID }}/fixtrace-backend:${{ github.sha }} \
+            --region=us-central1 \
+            --platform=managed \
+            --allow-unauthenticated \
+            --memory=1Gi \
+            --cpu=1 \
+            --timeout=300 \
+            --set-env-vars="GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT_ID }},GOOGLE_CLOUD_LOCATION=us-central1,GCS_BUCKET_NAME=fixtrace-uploads-${{ secrets.GCP_PROJECT_ID }},GOOGLE_GENAI_USE_VERTEXAI=true"
+
+  # ── Deploy frontend to Firebase Hosting ─────────────────────────────────────
+  deploy-frontend:
+    name: Frontend → Firebase Hosting
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Inject backend URL into production config
+        run: |
+          sed -i "s|apiUrl: '.*'|apiUrl: '${{ secrets.BACKEND_URL }}'|" \
+            src/environments/environment.prod.ts
+        working-directory: frontend
+
+      - name: Build Angular app
+        run: npm run build
+        working-directory: frontend
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_FIXTRACE_HACKATHON }}
+          channelId: live
+          projectId: fixtrace-hackathon

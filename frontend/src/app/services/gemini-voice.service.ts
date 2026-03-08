@@ -18,6 +18,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 // ── Match the backend's response shape ───────────────────────────────────────
 interface ChatTtsResponse {
@@ -32,8 +33,8 @@ export interface ChatTtsResult {
   audioArrayBuffer: ArrayBuffer;
 }
 
-// ── Backend URL – change if backend runs on a different port ─────────────────
-const API_URL = 'http://localhost:8080/api/chat-tts';
+// ── Backend URL from environment config ──────────────────────────────────────
+const API_URL = `${environment.apiUrl}/api/chat-tts`;
 
 // Gemini TTS returns PCM 16-bit LE at 24 kHz, mono
 const PCM_SAMPLE_RATE = 24_000;
