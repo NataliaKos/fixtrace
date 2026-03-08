@@ -43,6 +43,7 @@ yarn-error.log*
 !package-lock.json
 !tsconfig*.json
 !angular.json
+!firebase.json
 
 fixtrace-hackathon-f4b1da0000e8.json
 nul
