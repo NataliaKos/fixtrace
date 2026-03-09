@@ -14,14 +14,6 @@ export function loadMonaco(): Promise<void> {
 
     const vsBase = `${window.location.origin}/assets/monaco/vs`;
 
-    // Load Monaco CSS dynamically (not in global bundle to avoid @layer conflicts with Tailwind)
-    if (!document.querySelector('link[data-monaco-css]')) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = `${vsBase}/editor/editor.main.css`;
-      link.setAttribute('data-monaco-css', 'true');
-      document.head.appendChild(link);
-    }
     // workerMain.js constructs the loader URL as:  baseUrl + "vs/loader.js"
     // So baseUrl must be the PARENT of vs/, i.e. .../assets/monaco/ (not .../assets/monaco/vs/).
     // Then AMD module "vs/language/typescript/tsWorker" resolves to baseUrl + that path = correct URL.
