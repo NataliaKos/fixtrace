@@ -81,7 +81,7 @@ jobs:
           echo "=== Check @tailwindcss/postcss ==="
           node -e "const p = require('@tailwindcss/postcss'); console.log('postcss plugin:', typeof p, p.postcss)"
           echo "=== PostCSS config ==="
-          cat postcss.config.json
+          cat postcss.config.json || echo "postcss.config.json NOT FOUND!"
           echo ""
           echo "=== styles.css first 10 lines ==="
           head -10 src/styles.css
