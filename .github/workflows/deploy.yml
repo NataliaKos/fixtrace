@@ -63,12 +63,33 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
+        working-directory: frontend
+
+      - name: Debug – verify Tailwind setup
+        run: |
+          echo "=== Node/npm versions ==="
+          node --version
+          npm --version
+          echo "=== Check @tailwindcss/oxide ==="
+          node -e "try { require('@tailwindcss/oxide'); console.log('oxide: OK') } catch(e) { console.error('oxide FAILED:', e.message) }"
+          echo "=== Check @tailwindcss/postcss ==="
+          node -e "const p = require('@tailwindcss/postcss'); console.log('postcss plugin:', typeof p, p.postcss)"
+          echo "=== PostCSS config ==="
+          cat postcss.config.json
+          echo ""
+          echo "=== styles.css first 10 lines ==="
+          head -10 src/styles.css
+          echo "=== Source files count ==="
+          find src/app -name '*.ts' | wc -l
+          echo "TS files in src/app/"
+          find src/app -name '*.html' | wc -l
+          echo "HTML files in src/app/"
         working-directory: frontend
 
       - name: Inject backend URL into production config
@@ -79,6 +100,34 @@ jobs:
 
       - name: Build Angular app
         run: npm run build
+        working-directory: frontend
+
+      - name: Debug – verify build output
+        run: |
+          echo "=== Build output ==="
+          ls -la dist/frontend/browser/
+          CSS_FILE=$(ls dist/frontend/browser/styles-*.css 2>/dev/null || echo 'NOT FOUND')
+          echo "CSS file: $CSS_FILE"
+          if [ -f "$CSS_FILE" ]; then
+            SIZE=$(wc -c < "$CSS_FILE")
+            echo "CSS size: $SIZE bytes"
+            echo "Contains @layer: $(grep -c '@layer' "$CSS_FILE" || echo 0)"
+            echo "Contains .flex: $(grep -c '\.flex' "$CSS_FILE" || echo 0)"
+            echo "Contains bg-base: $(grep -c 'bg-base' "$CSS_FILE" || echo 0)"
+            echo "Contains .btn: $(grep -c '\.btn' "$CSS_FILE" || echo 0)"
+            echo "First 300 chars:"
+            head -c 300 "$CSS_FILE"
+            echo ""
+            # Fail the build if CSS is suspiciously small (Tailwind not working)
+            if [ "$SIZE" -lt 50000 ]; then
+              echo "::error::CSS file is only $SIZE bytes — Tailwind CSS likely failed to generate utilities!"
+              echo "Expected >80KB with Tailwind + DaisyUI utilities"
+              exit 1
+            fi
+          else
+            echo "::error::No styles CSS file found in build output!"
+            exit 1
+          fi
         working-directory: frontend
 
       - name: Deploy to Firebase Hosting
