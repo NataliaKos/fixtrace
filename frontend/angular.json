@@ -30,8 +30,7 @@
               }
             ],
             "styles": [
-              "src/styles.css",
-              "node_modules/monaco-editor/min/vs/editor/editor.main.css"
+              "src/styles.css"
             ]
           },
           "configurations": {
