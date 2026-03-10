@@ -179,13 +179,13 @@ function sanitizeJsonControlChars(text: string): string {
   const out: string[] = [];
   let inString = false;
   for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
+    const ch = text[i]!;
     const code = ch.charCodeAt(0);
 
     if (inString) {
       // Backslash escape — pass both chars through
       if (ch === "\\" && i + 1 < text.length) {
-        out.push(ch, text[i + 1]);
+        out.push(ch, text[i + 1]!);
         i++;
         continue;
       }

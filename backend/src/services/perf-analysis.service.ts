@@ -109,7 +109,7 @@ export async function analyzePerf(
     parsed = extractJson<Omit<PerfAnalysisResult, "requestId" | "fileId" | "analyzedAt">>(text);
     console.log(`[perf-service] JSON parsed OK, issues count=${parsed.issues?.length ?? 0}`);
   } catch (err: any) {
-    console.error(`[perf-service] JSON parse FAILED. Raw text:`, cleaned);
+    console.error(`[perf-service] JSON parse FAILED. Raw text:`, text);
     throw err;
   }
 
