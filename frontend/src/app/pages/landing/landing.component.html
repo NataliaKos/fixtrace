@@ -35,7 +35,7 @@
 
   <!-- About Section (Light/White) -->
   <section class="py-24 px-8 max-w-7xl mx-auto">
-    <div class="flex flex-col lg:flex-row gap-16 items-center">
+    <div class="flex flex-col md:flex-row gap-16 items-center">
       <div class="flex-1">
         <h2 class="font-serif text-brand-blue text-5xl mb-6 font-semibold">About FixTrace</h2>
         <p class="text-base-content/70 text-base leading-relaxed mb-8 max-w-lg">
@@ -43,7 +43,7 @@
         </p>
         <button (click)="goToAnalyzePage()" class="btn-read-more">GET STARTED</button>
       </div>
-      <div class="flex-1 w-full relative h-[500px]">
+      <div class="flex-1 w-full relative h-[500px] hidden md:block">
         <img src="images/landing/2-2.png" alt="Office Work illustration"
           class="absolute top-0 right-0 w-[55%] rounded-md shadow-xl object-cover" />
         <img src="images/landing/2-1.png" alt="Flatlay of colorful gadgets"
@@ -99,7 +99,7 @@
 
         <div>
           <h3 class="font-bold text-base-content text-2xl mb-6">Try it now!</h3>
-          <button class="btn-orange">Start</button>
+          <button (click)="goToAnalyzePage()" class="btn-orange">Start</button>
         </div>
       </div>
 
@@ -176,77 +176,6 @@
     </div>
   </section>
 
-  <!-- What Users Say Section (Dark Navy) -->
-  <section class="bg-navy py-24 px-8">
-    <div class="max-w-7xl mx-auto">
-      <h2 class="font-serif text-brand-blue text-4xl mb-12 font-semibold text-center md:text-left">What Users Say</h2>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div class="card-dark p-8 flex flex-col justify-between min-h-[300px]">
-          <p class="text-gray-300 text-base leading-relaxed mb-8">
-            "FixTrace saved me hours! The insights on our layout issues were incredibly helpful and efficiency has
-            grown."
-          </p>
-          <div class="flex items-center gap-4 border-t border-gray-800 pt-6">
-            <div class="w-12 h-12 rounded-full bg-blue-500 overflow-hidden flex items-center justify-center">
-              <img src="images/about_office_1772674079374.png" class="w-full h-full object-cover" alt="User" />
-            </div>
-            <div>
-              <p class="text-white text-sm font-semibold">Sarah Thompson</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="card-dark p-8 flex flex-col justify-between min-h-[300px]">
-          <p class="text-gray-300 text-base leading-relaxed mb-8">
-            "I love the tailored suggestions. It means I spend less time tracking and more time optimizing overall."
-          </p>
-          <div class="flex items-center gap-4 border-t border-gray-800 pt-6">
-            <div class="w-12 h-12 rounded-full bg-green-500 overflow-hidden flex items-center justify-center">
-              <img src="images/about_gadgets_1772674108377.png" class="w-full h-full object-cover" alt="User" />
-            </div>
-            <div>
-              <p class="text-white text-sm font-semibold">Mike Johnson</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="card-dark p-8 flex flex-col justify-between min-h-[300px]">
-          <p class="text-gray-300 text-base leading-relaxed mb-8">
-            "We've seen our Core Web Vitals improve rapidly. It supports multiple frameworks which is fantastic."
-          </p>
-          <div class="flex items-center gap-4 border-t border-gray-800 pt-6">
-            <div class="w-12 h-12 rounded-full bg-purple-500 overflow-hidden flex items-center justify-center">
-              <img src="images/hero_phone_1772674065937.png" class="w-full h-full object-cover" alt="User" />
-            </div>
-            <div>
-              <p class="text-white text-sm font-semibold">Emily Davis</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Pre Footer (Robot area - Light) -->
-  <section
-    class="bg-blue-50/30 py-20 px-8 relative flex flex-col items-center justify-center border-b border-base-300/50">
-    <div class="max-w-4xl mx-auto flex flex-col lg:flex-row items-center gap-12 text-center lg:text-left">
-      <div class="lg:w-1/2 flex justify-center lg:justify-end pr-0 lg:pr-8">
-        <img src="images/robot_footer.png" alt="Friendly FixTrace Agent Robot"
-          class="w-64 md:w-80 h-auto object-contain drop-shadow-2xl" />
-      </div>
-      <div class="flex-1 flex flex-col gap-6 items-center lg:items-start">
-        <h2 class="text-4xl font-serif font-bold text-brand-blue">Need help using<br>FixTrace?</h2>
-        <p class="text-base-content/70 text-lg">Our friendly AI assistant and human support team are ready to guide you.
-        </p>
-        <!-- <button
-          class="bg-white border-2 border-brand-blue text-brand-blue font-bold px-8 py-3 rounded-full hover:bg-brand-blue hover:text-white transition-all">Chat
-          Support</button> -->
-      </div>
-    </div>
-  </section>
-
   <!-- Footer (Dark Navy) -->
   <footer class="bg-navy pt-20 pb-12 px-8">
     <div class="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start gap-12">
@@ -261,7 +190,9 @@
       <div class="text-left lg:text-right">
         <h4 class="text-brand-blue font-serif font-semibold text-2xl mb-6">Get in Touch</h4>
         <p class="text-sm text-gray-300 mb-3">We would love to hear from you!</p>
-        <p class="text-sm font-medium text-white mb-6">natalia@skazzy.ca</p>
+        <p class="text-sm font-medium text-white mb-6">
+          <a href="mailto:natalia@skazzy.ca" class="hover:underline">Contact Us</a>
+        </p>
       </div>
 
     </div>

@@ -1,7 +1,9 @@
 /* ── Code Analysis service ── */
 
 import { v4 as uuidv4 } from "uuid";
-import { generate, uploadToGemini } from "./gemini.service.js";
+import { generate, uploadToGemini, extractJson } from "./gemini.service.js";
+import { Type } from "@google/genai";
+import type { Schema } from "@google/genai";
 import { downloadFile } from "./storage.service.js";
 import {
   CODE_ANALYSIS_UI_SYSTEM_PROMPT,
@@ -32,27 +34,80 @@ export async function analyzeCode(
   // If a screenshot/report file was also uploaded, include it as visual context
   if (req.gcsUri && req.mimeType && req.fileId) {
     const fileBuffer = await downloadFile(req.gcsUri);
-    const filePart = await uploadToGemini(fileBuffer, req.mimeType, req.fileId);
-    userParts.push(filePart);
+    const isTextBased = req.mimeType === "application/json" || req.mimeType.startsWith("text/");
+
+    if (isTextBased) {
+      const textContent = fileBuffer.toString("utf-8");
+      console.log(`[code-analysis] Using INLINE text (${textContent.length} chars) for mimeType=${req.mimeType}`);
+      const maxChars = 900_000;
+      const truncated = textContent.length > maxChars
+        ? textContent.substring(0, maxChars) + "\n... [TRUNCATED]"
+        : textContent;
+      userParts.push({ text: `Here is the uploaded analysis data (${req.mimeType}):\n\n${truncated}` });
+    } else {
+      console.log(`[code-analysis] Uploading to Gemini Files API, mimeType=${req.mimeType}`);
+      const filePart = await uploadToGemini(fileBuffer, req.mimeType, req.fileId);
+      userParts.push(filePart);
+    }
   }
 
   // Add code files as text
   const codePrompt = buildCodeAnalysisUserPrompt(req.files, req.userPrompt);
   userParts.push({ text: codePrompt });
 
+  // JSON Schema for constrained decoding — ensures proper string escaping
+  const codeAnalysisSchema: Schema = {
+    type: Type.OBJECT,
+    properties: {
+      patches: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            filePath: { type: Type.STRING },
+            hunks: { type: Type.STRING },
+            modified: { type: Type.STRING },
+            rationale: { type: Type.STRING },
+          },
+          required: ["filePath", "hunks", "modified", "rationale"],
+        },
+      },
+      summary: { type: Type.STRING },
+      score: { type: Type.NUMBER },
+      issues: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING },
+            category: { type: Type.STRING },
+            severity: { type: Type.STRING },
+            description: { type: Type.STRING },
+            location: { type: Type.STRING },
+            suggestion: { type: Type.STRING },
+            codeSnippet: { type: Type.STRING },
+            metric: { type: Type.STRING },
+            value: { type: Type.STRING },
+          },
+          required: ["id", "category", "severity", "description", "suggestion"],
+        },
+      },
+    },
+    required: ["patches", "summary", "issues"],
+  };
+
   const text = await generate({
     systemPrompt,
     userParts,
-    maxOutputTokens: 16384,
+    maxOutputTokens: 65536,
     temperature: 0.2,
+    jsonMode: true,
+    responseSchema: codeAnalysisSchema,
   });
 
-  // Strip markdown code fences if present
-  const cleaned = text
-    .replace(/^```(?:json)?\s*\n?/i, "")
-    .replace(/\n?```\s*$/i, "");
+  console.log(`[code-analysis] Gemini response length=${text.length}, first 500 chars:`, text.substring(0, 500));
 
-  const parsed = JSON.parse(cleaned);
+  const parsed = extractJson(text);
 
   return {
     requestId,
