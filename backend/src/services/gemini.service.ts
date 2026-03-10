@@ -8,9 +8,18 @@ let client: GoogleGenAI | undefined;
 
 function getClient(): GoogleGenAI {
   if (!client) {
-    const apiKey = process.env["GEMINI_API_KEY"] ?? "";
-    console.log(`[gemini] Initializing client, API key present: ${apiKey.length > 0}, key length: ${apiKey.length}`);
-    client = new GoogleGenAI({ apiKey });
+    const useVertexAI = process.env["GOOGLE_GENAI_USE_VERTEXAI"] === "true";
+
+    if (useVertexAI) {
+      const project = process.env["GOOGLE_CLOUD_PROJECT"] ?? "";
+      const location = process.env["GOOGLE_CLOUD_LOCATION"] ?? "us-central1";
+      console.log(`[gemini] Initializing Vertex AI client, project=${project}, location=${location}`);
+      client = new GoogleGenAI({ vertexai: true, project, location });
+    } else {
+      const apiKey = process.env["GEMINI_API_KEY"] ?? "";
+      console.log(`[gemini] Initializing API key client, key present: ${apiKey.length > 0}, key length: ${apiKey.length}`);
+      client = new GoogleGenAI({ apiKey });
+    }
   }
   return client;
 }
