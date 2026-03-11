@@ -91,7 +91,10 @@ export function handleLiveAudio(ws: WebSocket): void {
         console.log(`[live-audio] starting session — voice=${voice} mode=${mode}`);
 
         try {
-          session = await getAi().live.connect({
+          const ai = getAi();
+          console.log(`[live-audio] GoogleGenAI client ready, calling live.connect() with model=gemini-2.5-flash-native-audio-latest`);
+          console.log(`[live-audio] VERTEXAI=${process.env["GOOGLE_GENAI_USE_VERTEXAI"]}, PROJECT=${process.env["GOOGLE_CLOUD_PROJECT"]}`);
+          session = await ai.live.connect({
             model: "gemini-2.5-flash-native-audio-latest",
             config: {
               responseModalities: [Modality.AUDIO],
@@ -157,7 +160,10 @@ export function handleLiveAudio(ws: WebSocket): void {
           console.log("[live-audio] live.connect() resolved — session ready");
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : "Failed to start Gemini Live session";
+          const errStack = err instanceof Error ? err.stack : "";
           console.error("[live-audio] connect error:", errMsg);
+          console.error("[live-audio] connect error stack:", errStack);
+          console.error("[live-audio] connect error full:", JSON.stringify(err, Object.getOwnPropertyNames(err as object)).slice(0, 1000));
           safeSend(ws, { type: "error", message: errMsg });
         }
         break;
