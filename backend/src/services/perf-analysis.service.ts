@@ -22,14 +22,11 @@ export async function analyzePerf(
   req: PerfAnalysisRequest,
 ): Promise<PerfAnalysisResult> {
   const requestId = uuidv4();
-  console.log(`[perf-service] Starting analysis, requestId=${requestId}, fileId=${req.fileId}, gcsUri=${req.gcsUri}, mimeType=${req.mimeType}`);
 
   // Download from GCS
-  console.log(`[perf-service] Downloading file from GCS: ${req.gcsUri}`);
   let fileBuffer: Buffer;
   try {
     fileBuffer = await downloadFile(req.gcsUri);
-    console.log(`[perf-service] Downloaded file, size=${fileBuffer.length} bytes`);
   } catch (err: any) {
     console.error(`[perf-service] GCS download FAILED:`, err?.message ?? err);
     throw err;
@@ -41,7 +38,6 @@ export async function analyzePerf(
 
   if (isTextBased) {
     const textContent = fileBuffer.toString("utf-8");
-    console.log(`[perf-service] Using INLINE text (${textContent.length} chars) instead of Files API for mimeType=${req.mimeType}`);
     // Truncate if extremely large to stay within model context limits
     const maxChars = 900_000;
     const truncated = textContent.length > maxChars
@@ -51,21 +47,16 @@ export async function analyzePerf(
   } else {
     const useVertexAI = process.env["GOOGLE_GENAI_USE_VERTEXAI"] === "true";
     if (useVertexAI) {
-      console.log(`[perf-service] Vertex AI — using GCS URI directly, mimeType=${req.mimeType}`);
       dataPart = filePartFromGcsUri(req.gcsUri, req.mimeType);
     } else {
-      console.log(`[perf-service] Uploading to Gemini Files API, mimeType=${req.mimeType}`);
       try {
         dataPart = await uploadToGemini(fileBuffer, req.mimeType, req.fileId);
-        console.log(`[perf-service] Gemini upload OK, filePart:`, JSON.stringify(dataPart));
       } catch (err: any) {
         console.error(`[perf-service] Gemini upload FAILED:`, err?.message ?? err);
         throw err;
       }
     }
   }
-
-  console.log(`[perf-service] Calling Gemini generate...`);
 
   // JSON Schema for constrained decoding
   const perfAnalysisSchema: Schema = {
@@ -104,7 +95,6 @@ export async function analyzePerf(
       jsonMode: true,
       responseSchema: perfAnalysisSchema,
     });
-    console.log(`[perf-service] Gemini response length=${text.length}, first 500 chars:`, text.substring(0, 500));
   } catch (err: any) {
     console.error(`[perf-service] Gemini generate FAILED:`, err?.message ?? err);
     throw err;
@@ -113,9 +103,8 @@ export async function analyzePerf(
   let parsed;
   try {
     parsed = extractJson<Omit<PerfAnalysisResult, "requestId" | "fileId" | "analyzedAt">>(text);
-    console.log(`[perf-service] JSON parsed OK, issues count=${parsed.issues?.length ?? 0}`);
   } catch (err: any) {
-    console.error(`[perf-service] JSON parse FAILED. Raw text:`, text);
+    console.error(`[perf-service] JSON parse failed. Raw text:`, text);
     throw err;
   }
 

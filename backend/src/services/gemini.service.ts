@@ -13,11 +13,9 @@ function getClient(): GoogleGenAI {
     if (useVertexAI) {
       const project = process.env["GOOGLE_CLOUD_PROJECT"] ?? "";
       const location = process.env["GOOGLE_CLOUD_LOCATION"] ?? "us-central1";
-      console.log(`[gemini] Initializing Vertex AI client, project=${project}, location=${location}`);
       client = new GoogleGenAI({ vertexai: true, project, location });
     } else {
       const apiKey = process.env["GEMINI_API_KEY"] ?? "";
-      console.log(`[gemini] Initializing API key client, key present: ${apiKey.length > 0}, key length: ${apiKey.length}`);
       client = new GoogleGenAI({ apiKey });
     }
   }
@@ -68,7 +66,6 @@ export async function uploadToGemini(
 ): Promise<Part> {
   if (isVertexAI()) {
     // Vertex AI: use inline data (base64 encoded)
-    console.log(`[gemini] Vertex AI mode — using inlineData (${(buffer.length / 1024).toFixed(1)} KB, ${mimeType})`);
     const base64 = buffer.toString("base64");
     return { inlineData: { data: base64, mimeType } };
   }
@@ -113,14 +110,6 @@ export async function generate(opts: GenerateOptions): Promise<string> {
   const ai = getClient();
   const modelName = opts.model ?? DEFAULT_MODEL;
 
-  const partSummary = opts.userParts.map((p, i) => {
-    if ('text' in p && p.text) return `part[${i}]: text (${p.text.length} chars)`;
-    if ('fileData' in p && p.fileData) return `part[${i}]: fileData (${p.fileData.fileUri})`;
-    if ('inlineData' in p && p.inlineData) return `part[${i}]: inlineData (${p.inlineData.mimeType})`;
-    return `part[${i}]: unknown`;
-  });
-  console.log(`[gemini] generate() model=${modelName}, parts=[${partSummary.join(', ')}], temp=${opts.temperature ?? 0.3}, maxTokens=${opts.maxOutputTokens ?? 8192}`);
-
   const contents: Content[] = [
     { role: "user", parts: opts.userParts },
   ];
@@ -141,10 +130,7 @@ export async function generate(opts: GenerateOptions): Promise<string> {
 
   const text = response.text ?? "";
   const finishReason = response.candidates?.[0]?.finishReason;
-  console.log(`[gemini] generate() response length=${text.length}, finishReason=${finishReason}`);
-  if (finishReason === "MAX_TOKENS" || finishReason === "STOP") {
-    // expected
-  } else if (finishReason) {
+  if (finishReason && finishReason !== "MAX_TOKENS" && finishReason !== "STOP") {
     console.warn(`[gemini] Unexpected finishReason: ${finishReason}`);
   }
   return text;
@@ -162,13 +148,8 @@ export function extractJson<T = any>(raw: string): T {
   // Try direct parse first
   try {
     return JSON.parse(cleaned);
-  } catch (e: any) {
-    console.warn(`[gemini] Direct JSON.parse failed: ${e.message}`);
-    const posMatch = e.message?.match(/position (\d+)/);
-    if (posMatch) {
-      const pos = parseInt(posMatch[1], 10);
-      console.warn(`[gemini] Error context around position ${pos}:`, JSON.stringify(cleaned.substring(Math.max(0, pos - 100), pos + 100)));
-    }
+  } catch {
+    // Direct parse failed, try sanitization
   }
 
   // Sanitize: escape raw control characters inside JSON string values
@@ -178,22 +159,19 @@ export function extractJson<T = any>(raw: string): T {
   // Try parse after sanitization
   try {
     return JSON.parse(sanitized);
-  } catch (e: any) {
-    console.warn(`[gemini] Sanitized JSON.parse failed: ${e.message}`);
+  } catch {
+    // Sanitized parse failed, try jsonrepair
   }
 
   // Use jsonrepair on the sanitized text to fix remaining issues
   // (unescaped quotes, trailing commas, truncation, etc.)
   try {
     const repaired = jsonrepair(sanitized);
-    console.log(`[gemini] jsonrepair succeeded (original=${sanitized.length}, repaired=${repaired.length})`);
     return JSON.parse(repaired);
-  } catch (e: any) {
-    console.error(`[gemini] jsonrepair also failed: ${e.message}`);
+  } catch {
+    // jsonrepair also failed
   }
 
-  console.error("[gemini] extractJson FAILED. Raw text (first 2000 chars):", raw.substring(0, 2000));
-  console.error("[gemini] extractJson FAILED. Raw text (last 500 chars):", raw.substring(raw.length - 500));
   throw new Error(`Failed to extract valid JSON from Gemini response (length=${raw.length})`);
 }
 

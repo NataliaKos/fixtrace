@@ -42,11 +42,9 @@ function getAi(): GoogleGenAI {
     if (useVertexAI) {
       const project = process.env["GOOGLE_CLOUD_PROJECT"] ?? "";
       const location = process.env["GOOGLE_CLOUD_LOCATION"] ?? "us-central1";
-      console.log(`[live-audio] Initializing Vertex AI client, project=${project}, location=${location}`);
       _ai = new GoogleGenAI({ vertexai: true, project, location });
     } else {
       const apiKey = process.env["GEMINI_API_KEY"] ?? "";
-      console.log(`[live-audio] Initializing API key client, key present: ${apiKey.length > 0}`);
       _ai = new GoogleGenAI({ apiKey });
     }
   }
@@ -74,8 +72,6 @@ export function handleLiveAudio(ws: WebSocket): void {
       return;
     }
 
-    console.log(`[live-audio] ← client msg type="${msg["type"]}" session=${session ? "active" : "null"}`);
-
     switch (msg["type"]) {
 
       // ── Open a Gemini Live session ──────────────────────────────────────
@@ -88,7 +84,6 @@ export function handleLiveAudio(ws: WebSocket): void {
 
         const voice = msg["voice"] ?? "Puck";
         const mode  = (msg["mode"] ?? "both") as SessionMode;
-        console.log(`[live-audio] starting session — voice=${voice} mode=${mode}`);
 
         try {
           const ai = getAi();
@@ -97,8 +92,6 @@ export function handleLiveAudio(ws: WebSocket): void {
           const liveModel = useVertexAI
             ? "gemini-live-2.5-flash-native-audio"
             : "gemini-2.5-flash-native-audio-latest";
-          console.log(`[live-audio] GoogleGenAI client ready, calling live.connect() with model=${liveModel}`);
-          console.log(`[live-audio] VERTEXAI=${process.env["GOOGLE_GENAI_USE_VERTEXAI"]}, PROJECT=${process.env["GOOGLE_CLOUD_PROJECT"]}`);
           session = await ai.live.connect({
             model: liveModel,
             config: {
@@ -152,23 +145,14 @@ export function handleLiveAudio(ws: WebSocket): void {
                 console.error("[live-audio] Gemini WS error:", errMsg, e);
                 safeSend(ws, { type: "error", message: errMsg });
               },
-              onclose: (e?: any) => {
-                console.log(
-                  "[live-audio] Gemini session closed — code:", e?.code,
-                  "reason:", e?.reason?.toString?.() ?? e?.reason,
-                  "wasClean:", e?.wasClean,
-                );
+              onclose: () => {
                 session = null;
               },
             },
           });
-          console.log("[live-audio] live.connect() resolved — session ready");
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : "Failed to start Gemini Live session";
-          const errStack = err instanceof Error ? err.stack : "";
           console.error("[live-audio] connect error:", errMsg);
-          console.error("[live-audio] connect error stack:", errStack);
-          console.error("[live-audio] connect error full:", JSON.stringify(err, Object.getOwnPropertyNames(err as object)).slice(0, 1000));
           safeSend(ws, { type: "error", message: errMsg });
         }
         break;
@@ -186,8 +170,6 @@ export function handleLiveAudio(ws: WebSocket): void {
         if (!session) { audioChunks = []; break; }
         if (audioChunks.length === 0) break;
 
-        console.log(`[live-audio] audio_end — replaying ${audioChunks.length} chunk(s) via sendRealtimeInput`);
-
         // Manual activity signaling (VAD disabled): signal start, burst all
         // buffered chunks at once, then signal end so the model responds.
         session.sendRealtimeInput({ activityStart: {} });
@@ -196,14 +178,12 @@ export function handleLiveAudio(ws: WebSocket): void {
         }
         audioChunks = [];
         session.sendRealtimeInput({ activityEnd: {} });
-        console.log("[live-audio] activityEnd sent — awaiting model response");
         break;
       }
 
       // ── Send typed text turn ───────────────────────────────────────────
       case "text": {
         if (!session || !msg["content"]) break;
-        console.log("[live-audio] sendClientContent text:", msg["content"]?.slice(0, 80));
         try {
           session.sendClientContent({
             turns: [{ role: "user", parts: [{ text: msg["content"] }] }],
@@ -231,7 +211,6 @@ export function handleLiveAudio(ws: WebSocket): void {
             }
           }
         } catch { /* ignore malformed images JSON */ }
-        console.log(`[live-audio] sendClientContent context: text + ${imgParts.length} image(s)`);
         try {
           session.sendClientContent({
             turns: [{ role: "user", parts: [{ text: msg["content"] }, ...imgParts] }],

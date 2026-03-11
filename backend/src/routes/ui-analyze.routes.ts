@@ -23,7 +23,6 @@ router.post("/", async (req: Request, res: Response) => {
     res.json({ success: true, data: result } satisfies ApiResponse<UiAnalysisResult>);
   } catch (err: any) {
     console.error("UI analysis error:", err?.message ?? err);
-    console.error("Full error:", JSON.stringify(err, Object.getOwnPropertyNames(err ?? {}), 2));
     res.status(500).json({ success: false, error: err?.message ?? "UI analysis failed" } satisfies ApiResponse);
   }
 });

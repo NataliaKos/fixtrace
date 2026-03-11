@@ -281,7 +281,6 @@ export class CodeInputComponent {
     let processed = 0;
     const total = fileList.length;
     let readQueued = 0;
-    console.log(`[FolderUpload] started — ${total} total files in "${folderName}"`);
 
     for (let i = 0; i < fileList.length; i++) {
       const file = fileList[i];
@@ -308,7 +307,6 @@ export class CodeInputComponent {
 
       // Skip files > 100KB
       if (file.size > 100 * 1024) {
-        console.log(`[FolderUpload] skipping large file (${file.size}B): ${relativePath}`);
         processed++;
         if (processed === total) this.finishFolderLoad(codeFiles, input);
         continue;
@@ -327,7 +325,6 @@ export class CodeInputComponent {
           language: detectLanguage(file.name),
         });
         processed++;
-        console.log(`[FolderUpload] read ${processed}/${total}: ${cleanPath}`);
         if (processed === total) this.zone.run(() => this.finishFolderLoad(codeFiles, input));
       };
       reader.onerror = () => {
@@ -337,12 +334,9 @@ export class CodeInputComponent {
       };
       reader.readAsText(file);
     }
-
-    console.log(`[FolderUpload] queued ${readQueued} reads, skipped ${total - readQueued}`);
   }
 
   private finishFolderLoad(codeFiles: CodeFile[], inputEl?: HTMLInputElement): void {
-    console.log(`[FolderUpload] done — ${codeFiles.length} code files loaded`);
     codeFiles.sort((a, b) => a.path.localeCompare(b.path));
     this.files.set(codeFiles);
     this.loading.set(false);

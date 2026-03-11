@@ -62,13 +62,10 @@ export async function deleteFile(gcsUri: string): Promise<void> {
  * Download a file from GCS into a Buffer.
  */
 export async function downloadFile(gcsUri: string): Promise<Buffer> {
-  console.log(`[storage] downloadFile called with URI: ${gcsUri}`);
   const match = gcsUri.match(/^gs:\/\/([^/]+)\/(.+)$/);
   if (!match) throw new Error(`Invalid GCS URI: ${gcsUri}`);
 
   const [, bucket, filePath] = match as [string, string, string];
-  console.log(`[storage] Downloading from bucket=${bucket}, path=${filePath}`);
   const [contents] = await storage.bucket(bucket).file(filePath).download();
-  console.log(`[storage] Download complete, size=${contents.length} bytes`);
   return contents;
 }

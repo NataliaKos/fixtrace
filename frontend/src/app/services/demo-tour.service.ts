@@ -203,7 +203,6 @@ export class DemoTourService {
   /** Filters the master list to steps whose target element is in the current DOM. */
   private _buildActiveSteps(): TourStep[] {
     const found = TOUR_STEPS.filter((s) => !!document.querySelector(s.selector));
-    console.log('[DemoTour] Found steps:', found.map(s => s.id));
     return found;
   }
 }

@@ -30,7 +30,6 @@ router.post("/transcribe", async (req: Request, res: Response) => {
 
     // Convert base64 to Buffer and upload via Files API (avoids inline size limits)
     const buffer = Buffer.from(audioBase64, "base64");
-    console.log(`Voice transcribe: uploading ${(buffer.length / 1024).toFixed(1)} KB audio (${audioMimeType})`);
     const filePart = await uploadToGemini(buffer, audioMimeType, "voice-recording");
 
     const text = await generate({

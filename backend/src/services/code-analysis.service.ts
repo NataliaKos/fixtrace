@@ -38,7 +38,6 @@ export async function analyzeCode(
 
     if (isTextBased) {
       const textContent = fileBuffer.toString("utf-8");
-      console.log(`[code-analysis] Using INLINE text (${textContent.length} chars) for mimeType=${req.mimeType}`);
       const maxChars = 900_000;
       const truncated = textContent.length > maxChars
         ? textContent.substring(0, maxChars) + "\n... [TRUNCATED]"
@@ -47,10 +46,8 @@ export async function analyzeCode(
     } else {
       const useVertexAI = process.env["GOOGLE_GENAI_USE_VERTEXAI"] === "true";
       if (useVertexAI) {
-        console.log(`[code-analysis] Vertex AI — using GCS URI directly, mimeType=${req.mimeType}`);
         userParts.push(filePartFromGcsUri(req.gcsUri, req.mimeType));
       } else {
-        console.log(`[code-analysis] Uploading to Gemini Files API, mimeType=${req.mimeType}`);
         const filePart = await uploadToGemini(fileBuffer, req.mimeType, req.fileId);
         userParts.push(filePart);
       }
@@ -110,8 +107,6 @@ export async function analyzeCode(
     jsonMode: true,
     responseSchema: codeAnalysisSchema,
   });
-
-  console.log(`[code-analysis] Gemini response length=${text.length}, first 500 chars:`, text.substring(0, 500));
 
   const parsed = extractJson(text);
 
