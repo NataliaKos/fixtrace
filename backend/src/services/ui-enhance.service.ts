@@ -44,7 +44,7 @@ export async function enhanceUi(
   // gemini-3.1-pro-preview supports large output tokens
   // which avoids JSON truncation when patches are large.
   const text = await generate({
-    model: "gemini-3.1-pro-preview",
+    model: "gemini-2.5-flash",
     systemPrompt: UI_ENHANCE_SYSTEM_PROMPT,
     userParts,
     maxOutputTokens: 65536,

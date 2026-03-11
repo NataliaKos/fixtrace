@@ -1,7 +1,7 @@
 /* ── Chat-TTS Service ──────────────────────────────────────────────────────
  *
  *  Orchestrates two Gemini calls:
- *    1. Text generation  → gemini-3.1-pro-preview  (configurable via TEXT_MODEL)
+ *    1. Text generation  → gemini-2.5-flash      (configurable via TEXT_MODEL)
  *    2. TTS synthesis    → gemini-2.5-flash-preview-tts  (configurable via TTS_MODEL)
  *
  *  Returns the reply text + raw PCM audio as a base64 string.
@@ -14,7 +14,7 @@ import { GoogleGenAI } from "@google/genai";
 import "dotenv/config";
 
 // ── Model names – change here to try other variants ──────────────────────────
-const TEXT_MODEL = "gemini-3.1-pro-preview";
+const TEXT_MODEL = "gemini-2.5-flash";
 const TTS_MODEL  = "gemini-2.5-flash-preview-tts";
 
 // ── Voice name – other built-in voices: Kore, Charon, Fenrir, Aoede, Orbit ──

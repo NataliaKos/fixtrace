@@ -24,7 +24,7 @@ function getClient(): GoogleGenAI {
   return client;
 }
 
-const DEFAULT_MODEL = "gemini-3.1-pro-preview";
+const DEFAULT_MODEL = "gemini-2.5-flash";
 
 // ── Retry helper for 429 / 503 transient errors ────────────────────
 const MAX_RETRIES = 4;
