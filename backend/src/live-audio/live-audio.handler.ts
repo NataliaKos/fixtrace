@@ -37,7 +37,19 @@ const SYSTEM_PROMPTS: Record<SessionMode, string> = {
 
 let _ai: GoogleGenAI | undefined;
 function getAi(): GoogleGenAI {
-  if (!_ai) _ai = new GoogleGenAI({ apiKey: process.env["GEMINI_API_KEY"] ?? "" });
+  if (!_ai) {
+    const useVertexAI = process.env["GOOGLE_GENAI_USE_VERTEXAI"] === "true";
+    if (useVertexAI) {
+      const project = process.env["GOOGLE_CLOUD_PROJECT"] ?? "";
+      const location = process.env["GOOGLE_CLOUD_LOCATION"] ?? "us-central1";
+      console.log(`[live-audio] Initializing Vertex AI client, project=${project}, location=${location}`);
+      _ai = new GoogleGenAI({ vertexai: true, project, location });
+    } else {
+      const apiKey = process.env["GEMINI_API_KEY"] ?? "";
+      console.log(`[live-audio] Initializing API key client, key present: ${apiKey.length > 0}`);
+      _ai = new GoogleGenAI({ apiKey });
+    }
+  }
   return _ai;
 }
 
