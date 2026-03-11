@@ -207,6 +207,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
       // 24 kHz PCM audio chunks → avatar playback
       this.liveAudio.pcmChunk$.subscribe((pcm) => {
+        console.log(`[chat-panel] pcmChunk received: ${pcm.byteLength} bytes`);
         this.avatarRef?.queuePcmChunk(pcm);
       }),
 
@@ -224,6 +225,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
       // AI finished its turn
       this.liveAudio.turnComplete$.subscribe(() => {
+        console.log('[chat-panel] turnComplete received');
         this.loading.set(false);
         this.avatarRef?.stopStreamPlayback();
       }),

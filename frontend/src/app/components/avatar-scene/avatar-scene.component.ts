@@ -156,9 +156,30 @@ export class AvatarSceneComponent implements AfterViewInit, OnDestroy {
     const t = Math.max(this.streamNextStart, this.streamCtx.currentTime);
     src.start(t);
     this.streamNextStart = t + buf.duration;
+    console.log(`[avatar] queued PCM chunk: samples=${samples.length} duration=${buf.duration.toFixed(3)}s scheduledEnd=${this.streamNextStart.toFixed(3)}s ctxTime=${this.streamCtx.currentTime.toFixed(3)}s`);
   }
 
+  /** Gracefully stop stream playback, waiting for queued audio to finish. */
   stopStreamPlayback(): void {
+    if (!this.streamCtx) {
+      this.isPlaying = false;
+      this.jawOpen = 0;
+      return;
+    }
+    const remaining = this.streamNextStart - this.streamCtx.currentTime;
+    console.log(`[avatar] stopStreamPlayback called — remaining=${remaining.toFixed(3)}s`);
+    if (remaining > 0.05) {
+      // Let queued audio finish playing before closing
+      setTimeout(() => {
+        console.log(`[avatar] deferred stop — closing stream now`);
+        this._closeStream();
+      }, remaining * 1000 + 100);
+    } else {
+      this._closeStream();
+    }
+  }
+
+  private _closeStream(): void {
     this.isPlaying = false;
     if (this.analyser === this.streamAnalyser) this.analyser = null;
     this.streamCtx?.close();
