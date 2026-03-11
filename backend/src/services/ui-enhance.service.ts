@@ -1,7 +1,7 @@
 /* ── UI Enhancement service ── */
 
 import { v4 as uuidv4 } from "uuid";
-import { generate, generateImage, uploadToGemini } from "./gemini.service.js";
+import { generate, generateImage, uploadToGemini, filePartFromGcsUri, extractJson } from "./gemini.service.js";
 import { downloadFile } from "./storage.service.js";
 import {
   UI_ENHANCE_SYSTEM_PROMPT,
@@ -26,11 +26,16 @@ export async function enhanceUi(
   const requestId = uuidv4();
   const userParts: Part[] = [];
 
-  // If an image/video was provided, upload it
+  // If an image/video was provided, get the file part
   if (req.gcsUri && req.mimeType && req.fileId) {
-    const fileBuffer = await downloadFile(req.gcsUri);
-    const filePart = await uploadToGemini(fileBuffer, req.mimeType, req.fileId);
-    userParts.push(filePart);
+    const useVertexAI = process.env["GOOGLE_GENAI_USE_VERTEXAI"] === "true";
+    if (useVertexAI) {
+      userParts.push(filePartFromGcsUri(req.gcsUri, req.mimeType));
+    } else {
+      const fileBuffer = await downloadFile(req.gcsUri);
+      const filePart = await uploadToGemini(fileBuffer, req.mimeType, req.fileId);
+      userParts.push(filePart);
+    }
   }
 
   userParts.push({ text: buildUiEnhanceUserPrompt(req.userPrompt, req.files) });
@@ -45,8 +50,7 @@ export async function enhanceUi(
     maxOutputTokens: 65536,
   });
 
-  const cleaned = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
-  const parsed = JSON.parse(cleaned) as EnhanceResponse;
+  const parsed = extractJson<EnhanceResponse>(text);
 
   // 2. Generate the image using Imagen 3
   let imageUrl = "";

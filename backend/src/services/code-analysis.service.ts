@@ -1,7 +1,7 @@
 /* ── Code Analysis service ── */
 
 import { v4 as uuidv4 } from "uuid";
-import { generate, uploadToGemini, extractJson } from "./gemini.service.js";
+import { generate, uploadToGemini, extractJson, filePartFromGcsUri } from "./gemini.service.js";
 import { Type } from "@google/genai";
 import type { Schema } from "@google/genai";
 import { downloadFile } from "./storage.service.js";
@@ -45,9 +45,15 @@ export async function analyzeCode(
         : textContent;
       userParts.push({ text: `Here is the uploaded analysis data (${req.mimeType}):\n\n${truncated}` });
     } else {
-      console.log(`[code-analysis] Uploading to Gemini Files API, mimeType=${req.mimeType}`);
-      const filePart = await uploadToGemini(fileBuffer, req.mimeType, req.fileId);
-      userParts.push(filePart);
+      const useVertexAI = process.env["GOOGLE_GENAI_USE_VERTEXAI"] === "true";
+      if (useVertexAI) {
+        console.log(`[code-analysis] Vertex AI — using GCS URI directly, mimeType=${req.mimeType}`);
+        userParts.push(filePartFromGcsUri(req.gcsUri, req.mimeType));
+      } else {
+        console.log(`[code-analysis] Uploading to Gemini Files API, mimeType=${req.mimeType}`);
+        const filePart = await uploadToGemini(fileBuffer, req.mimeType, req.fileId);
+        userParts.push(filePart);
+      }
     }
   }
 

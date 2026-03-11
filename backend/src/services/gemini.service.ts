@@ -49,12 +49,30 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   throw lastError;
 }
 
+// ── Helper to check if using Vertex AI ──────────────────────────────
+function isVertexAI(): boolean {
+  return process.env["GOOGLE_GENAI_USE_VERTEXAI"] === "true";
+}
+
+// ── Create a fileData Part from a GCS URI (Vertex AI) ───────────────
+export function filePartFromGcsUri(gcsUri: string, mimeType: string): Part {
+  return { fileData: { fileUri: gcsUri, mimeType } };
+}
+
 // ── Upload a buffer to Gemini Files API and return a fileData Part ───
+// On Vertex AI the Files API is not available, so we fall back to inlineData.
 export async function uploadToGemini(
   buffer: Buffer,
   mimeType: string,
   displayName?: string,
 ): Promise<Part> {
+  if (isVertexAI()) {
+    // Vertex AI: use inline data (base64 encoded)
+    console.log(`[gemini] Vertex AI mode — using inlineData (${(buffer.length / 1024).toFixed(1)} KB, ${mimeType})`);
+    const base64 = buffer.toString("base64");
+    return { inlineData: { data: base64, mimeType } };
+  }
+
   const ai = getClient();
 
   // Convert Buffer to a Blob for the SDK

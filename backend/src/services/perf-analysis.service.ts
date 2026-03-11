@@ -1,7 +1,7 @@
 /* ── Performance Analysis service ── */
 
 import { v4 as uuidv4 } from "uuid";
-import { generate, uploadToGemini, extractJson } from "./gemini.service.js";
+import { generate, uploadToGemini, extractJson, filePartFromGcsUri } from "./gemini.service.js";
 import { Type } from "@google/genai";
 import type { Schema } from "@google/genai";
 import { downloadFile } from "./storage.service.js";
@@ -49,13 +49,19 @@ export async function analyzePerf(
       : textContent;
     dataPart = { text: `Here is the performance trace data (${req.mimeType}):\n\n${truncated}` };
   } else {
-    console.log(`[perf-service] Uploading to Gemini Files API, mimeType=${req.mimeType}`);
-    try {
-      dataPart = await uploadToGemini(fileBuffer, req.mimeType, req.fileId);
-      console.log(`[perf-service] Gemini upload OK, filePart:`, JSON.stringify(dataPart));
-    } catch (err: any) {
-      console.error(`[perf-service] Gemini upload FAILED:`, err?.message ?? err);
-      throw err;
+    const useVertexAI = process.env["GOOGLE_GENAI_USE_VERTEXAI"] === "true";
+    if (useVertexAI) {
+      console.log(`[perf-service] Vertex AI — using GCS URI directly, mimeType=${req.mimeType}`);
+      dataPart = filePartFromGcsUri(req.gcsUri, req.mimeType);
+    } else {
+      console.log(`[perf-service] Uploading to Gemini Files API, mimeType=${req.mimeType}`);
+      try {
+        dataPart = await uploadToGemini(fileBuffer, req.mimeType, req.fileId);
+        console.log(`[perf-service] Gemini upload OK, filePart:`, JSON.stringify(dataPart));
+      } catch (err: any) {
+        console.error(`[perf-service] Gemini upload FAILED:`, err?.message ?? err);
+        throw err;
+      }
     }
   }
 
