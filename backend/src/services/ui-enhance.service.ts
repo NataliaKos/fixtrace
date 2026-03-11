@@ -41,10 +41,10 @@ export async function enhanceUi(
   userParts.push({ text: buildUiEnhanceUserPrompt(req.userPrompt, req.files) });
 
   // 1. Get the image prompt and code patches from Gemini
-  // gemini-2.5-flash supports up to 65536 output tokens; gemini-2.0-flash caps at 8192
-  // which causes JSON truncation when patches are large.
+  // gemini-3.1-pro-preview supports large output tokens
+  // which avoids JSON truncation when patches are large.
   const text = await generate({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.1-pro-preview",
     systemPrompt: UI_ENHANCE_SYSTEM_PROMPT,
     userParts,
     maxOutputTokens: 65536,
