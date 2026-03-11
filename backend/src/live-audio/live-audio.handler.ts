@@ -93,9 +93,9 @@ export function handleLiveAudio(ws: WebSocket): void {
         try {
           const ai = getAi();
           const useVertexAI = process.env["GOOGLE_GENAI_USE_VERTEXAI"] === "true";
-          // Native-audio models are AI-Studio-only; Vertex AI needs the standard live model
+          // Vertex AI uses different model IDs for Live API
           const liveModel = useVertexAI
-            ? "gemini-2.0-flash-live-001"
+            ? "gemini-live-2.5-flash-native-audio"
             : "gemini-2.5-flash-native-audio-latest";
           console.log(`[live-audio] GoogleGenAI client ready, calling live.connect() with model=${liveModel}`);
           console.log(`[live-audio] VERTEXAI=${process.env["GOOGLE_GENAI_USE_VERTEXAI"]}, PROJECT=${process.env["GOOGLE_CLOUD_PROJECT"]}`);
