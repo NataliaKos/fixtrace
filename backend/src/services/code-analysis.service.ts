@@ -23,6 +23,8 @@ export async function analyzeCode(
   req: CodeAnalysisRequest,
 ): Promise<CodeAnalysisResult> {
   const requestId = uuidv4();
+  const t0 = Date.now();
+  const timing = (label: string) => console.log(`[code-service] ${label} — ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 
   const systemPrompt =
     req.mode === "ui"
@@ -34,15 +36,17 @@ export async function analyzeCode(
   // If a screenshot/report file was also uploaded, include it as visual context
   if (req.gcsUri && req.mimeType && req.fileId) {
     const fileBuffer = await downloadFile(req.gcsUri);
+    timing(`GCS download (${(fileBuffer.length / 1024).toFixed(0)} KB)`);
     const isTextBased = req.mimeType === "application/json" || req.mimeType.startsWith("text/");
 
     if (isTextBased) {
       const textContent = fileBuffer.toString("utf-8");
-      const maxChars = 900_000;
+      const maxChars = 300_000;
       const truncated = textContent.length > maxChars
         ? textContent.substring(0, maxChars) + "\n... [TRUNCATED]"
         : textContent;
       userParts.push({ text: `Here is the uploaded analysis data (${req.mimeType}):\n\n${truncated}` });
+      timing(`Uploaded data prepared (${truncated.length} chars)`);
     } else {
       const useVertexAI = process.env["GOOGLE_GENAI_USE_VERTEXAI"] === "true";
       if (useVertexAI) {
@@ -99,16 +103,19 @@ export async function analyzeCode(
     required: ["patches", "summary", "issues"],
   };
 
+  timing("Calling Gemini generate…");
   const text = await generate({
     systemPrompt,
     userParts,
-    maxOutputTokens: 65536,
+    maxOutputTokens: 32768,
     temperature: 0.2,
     jsonMode: true,
     responseSchema: codeAnalysisSchema,
   });
+  timing(`Gemini response received (${text.length} chars)`);
 
   const parsed = extractJson(text);
+  timing("JSON parsed OK");
 
   return {
     requestId,

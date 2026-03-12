@@ -24,6 +24,28 @@ const PORT = parseInt(process.env["PORT"] ?? "8080", 10);
 app.use(cors());
 app.use(express.json({ limit: "25mb" }));
 
+// ── Request timeout + timing middleware ─────────────────────────────
+// Returns a proper CORS-enabled 504 *before* Cloud Run kills the request.
+const REQUEST_TIMEOUT_MS = parseInt(process.env["REQUEST_TIMEOUT_MS"] ?? "290000", 10); // 290s < Cloud Run default
+app.use((req, res, next) => {
+  const start = Date.now();
+  const timer = setTimeout(() => {
+    if (!res.headersSent) {
+      const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+      console.error(`[timeout] ${req.method} ${req.path} — aborted after ${elapsed}s`);
+      res.status(504).json({ success: false, error: `Request timed out after ${elapsed}s` });
+    }
+  }, REQUEST_TIMEOUT_MS);
+
+  res.on("finish", () => {
+    clearTimeout(timer);
+    const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+    console.log(`[timing] ${req.method} ${req.path} — ${res.statusCode} in ${elapsed}s`);
+  });
+
+  next();
+});
+
 // ── Health check ────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });

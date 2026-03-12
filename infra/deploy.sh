@@ -25,9 +25,12 @@ gcloud run deploy "${SERVICE_NAME}" \
   --region="${REGION}" \
   --platform=managed \
   --allow-unauthenticated \
-  --memory=1Gi \
-  --cpu=1 \
-  --timeout=300 \
+  --memory=2Gi \
+  --cpu=2 \
+  --timeout=3600 \
+  --min-instances=1 \
+  --concurrency=20 \
+  --session-affinity \
   --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${REGION},GCS_BUCKET_NAME=fixtrace-uploads-${PROJECT_ID},GOOGLE_GENAI_USE_VERTEXAI=true"
 
 echo ""

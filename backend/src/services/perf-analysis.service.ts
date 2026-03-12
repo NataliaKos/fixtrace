@@ -22,11 +22,14 @@ export async function analyzePerf(
   req: PerfAnalysisRequest,
 ): Promise<PerfAnalysisResult> {
   const requestId = uuidv4();
+  const t0 = Date.now();
+  const timing = (label: string) => console.log(`[perf-service] ${label} — ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 
   // Download from GCS
   let fileBuffer: Buffer;
   try {
     fileBuffer = await downloadFile(req.gcsUri);
+    timing(`GCS download (${(fileBuffer.length / 1024).toFixed(0)} KB)`);
   } catch (err: any) {
     console.error(`[perf-service] GCS download FAILED:`, err?.message ?? err);
     throw err;
@@ -38,12 +41,13 @@ export async function analyzePerf(
 
   if (isTextBased) {
     const textContent = fileBuffer.toString("utf-8");
-    // Truncate if extremely large to stay within model context limits
-    const maxChars = 900_000;
+    // Truncate to stay within model context limits — 300K chars keeps response fast
+    const maxChars = 300_000;
     const truncated = textContent.length > maxChars
       ? textContent.substring(0, maxChars) + "\n... [TRUNCATED]"
       : textContent;
     dataPart = { text: `Here is the performance trace data (${req.mimeType}):\n\n${truncated}` };
+    timing(`Text prepared (${truncated.length} chars from ${textContent.length})`);
   } else {
     const useVertexAI = process.env["GOOGLE_GENAI_USE_VERTEXAI"] === "true";
     if (useVertexAI) {
@@ -86,6 +90,7 @@ export async function analyzePerf(
 
   let text: string;
   try {
+    timing("Calling Gemini generate…");
     text = await generate({
       systemPrompt: PERF_ANALYSIS_SYSTEM_PROMPT,
       userParts: [
@@ -95,7 +100,9 @@ export async function analyzePerf(
       jsonMode: true,
       responseSchema: perfAnalysisSchema,
     });
+    timing(`Gemini response received (${text.length} chars)`);
   } catch (err: any) {
+    timing("Gemini generate FAILED");
     console.error(`[perf-service] Gemini generate FAILED:`, err?.message ?? err);
     throw err;
   }
@@ -103,6 +110,7 @@ export async function analyzePerf(
   let parsed;
   try {
     parsed = extractJson<Omit<PerfAnalysisResult, "requestId" | "fileId" | "analyzedAt">>(text);
+    timing("JSON parsed OK");
   } catch (err: any) {
     console.error(`[perf-service] JSON parse failed. Raw text:`, text);
     throw err;
