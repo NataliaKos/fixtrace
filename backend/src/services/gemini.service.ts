@@ -27,6 +27,7 @@ const DEFAULT_MODEL = "gemini-2.5-flash";
 // ── Retry helper for 429 / 503 transient errors ────────────────────
 const MAX_RETRIES = 4;
 const BASE_DELAY_MS = 2_000;
+const PER_CALL_TIMEOUT_MS = 120_000; // 120s per Gemini call attempt
 
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   let lastError: unknown;
@@ -36,15 +37,23 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
     } catch (err: any) {
       lastError = err;
       const status = err?.status ?? err?.code ?? err?.httpStatusCode;
-      const isRetryable = status === 429 || status === 500 || status === 503 || /resource.exhausted|too many requests|internal/i.test(String(err?.message));
+      const msg = String(err?.message ?? "");
+      const isRetryable = status === 429 || status === 500 || status === 503
+        || /resource.exhausted|too many requests|internal/i.test(msg)
+        || msg.includes("aborted"); // treat timeout as retryable
       if (!isRetryable || attempt === MAX_RETRIES) throw err;
 
       const delay = BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 1_000;
-      console.warn(`Gemini ${status} — retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${MAX_RETRIES})…`);
+      console.warn(`[gemini] ${status ?? 'timeout'} — retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${MAX_RETRIES})…`);
       await new Promise((r) => setTimeout(r, delay));
     }
   }
   throw lastError;
+}
+
+/** Create an AbortSignal that fires after `ms` milliseconds */
+function timeoutSignal(ms: number): AbortSignal {
+  return AbortSignal.timeout(ms);
 }
 
 // ── Helper to check if using Vertex AI ──────────────────────────────
@@ -114,8 +123,8 @@ export async function generate(opts: GenerateOptions): Promise<string> {
     { role: "user", parts: opts.userParts },
   ];
 
-  const response = await withRetry(() =>
-    ai.models.generateContent({
+  const response = await withRetry(() => {
+    return ai.models.generateContent({
       model: modelName,
       contents,
       config: {
@@ -124,9 +133,11 @@ export async function generate(opts: GenerateOptions): Promise<string> {
         maxOutputTokens: opts.maxOutputTokens ?? 8192,
         ...(opts.jsonMode ? { responseMimeType: "application/json" } : {}),
         ...(opts.responseSchema ? { responseSchema: opts.responseSchema } : {}),
+        httpOptions: { timeout: PER_CALL_TIMEOUT_MS },
+        abortSignal: timeoutSignal(PER_CALL_TIMEOUT_MS),
       },
-    }),
-  );
+    });
+  });
 
   const text = response.text ?? "";
   const finishReason = response.candidates?.[0]?.finishReason;
@@ -279,4 +290,41 @@ export function startChat(opts: {
       return res.text ?? "";
     },
   };
+}
+
+// ── Text-to-Speech via Gemini TTS model ─────────────────────────────
+const TTS_MODEL = "gemini-2.5-flash-preview-tts";
+
+export interface TtsOptions {
+  text: string;
+  voiceName?: string;
+}
+
+/**
+ * Synthesise text to speech using Gemini TTS.
+ * Returns raw PCM audio bytes as a base64 string (16-bit LE, 24 kHz, mono).
+ */
+export async function generateTts(opts: TtsOptions): Promise<string> {
+  const ai = getClient();
+
+  const response = await withRetry(() =>
+    ai.models.generateContent({
+      model: TTS_MODEL,
+      contents: [{ role: "user", parts: [{ text: opts.text }] }],
+      config: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: opts.voiceName ?? "Puck" },
+          },
+        },
+        httpOptions: { timeout: PER_CALL_TIMEOUT_MS },
+        abortSignal: timeoutSignal(PER_CALL_TIMEOUT_MS),
+      },
+    }),
+  );
+
+  const inlineData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+  if (!inlineData?.data) throw new Error("TTS response contained no audio data");
+  return inlineData.data; // base64 PCM
 }

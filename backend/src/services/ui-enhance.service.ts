@@ -3,6 +3,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { generate, generateImage, uploadToGemini, filePartFromGcsUri, extractJson } from "./gemini.service.js";
 import { downloadFile } from "./storage.service.js";
+import { applyHunks } from "./diff-apply.service.js";
 import {
   UI_ENHANCE_SYSTEM_PROMPT,
   buildUiEnhanceUserPrompt,
@@ -41,16 +42,29 @@ export async function enhanceUi(
   userParts.push({ text: buildUiEnhanceUserPrompt(req.userPrompt, req.files) });
 
   // 1. Get the image prompt and code patches from Gemini
-  // gemini-3.1-pro-preview supports large output tokens
-  // which avoids JSON truncation when patches are large.
   const text = await generate({
     model: "gemini-2.5-flash",
     systemPrompt: UI_ENHANCE_SYSTEM_PROMPT,
     userParts,
-    maxOutputTokens: 65536,
+    maxOutputTokens: 16384,
   });
 
   const parsed = extractJson<EnhanceResponse>(text);
+
+  // Build lookup of original file content for applying hunks
+  const originalsByPath = new Map<string, string>();
+  if (req.files) {
+    for (const f of req.files) {
+      originalsByPath.set(f.path, f.content);
+    }
+  }
+
+  // Compute 'modified' server-side by applying hunks
+  const patches = (parsed.patches ?? []).map((p: any) => {
+    const original = originalsByPath.get(p.filePath) ?? "";
+    const modified = original ? applyHunks(original, p.hunks ?? "") : (p.modified ?? p.hunks ?? "");
+    return { ...p, modified };
+  });
 
   // 2. Generate the image using Imagen 3
   let imageUrl = "";
@@ -64,7 +78,7 @@ export async function enhanceUi(
   return {
     requestId,
     imageUrl,
-    patches: parsed.patches ?? [],
+    patches,
     summary: parsed.summary ?? "UI Enhancement complete.",
     analyzedAt: new Date().toISOString(),
   };

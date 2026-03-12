@@ -19,7 +19,6 @@ Schema:
     {
       "filePath": "path/to/file",
       "hunks": "Unified diff format...",
-      "modified": "Full modified file content...",
       "rationale": "Why this change was made..."
     }
   ]

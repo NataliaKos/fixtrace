@@ -5,6 +5,7 @@ import { generate, uploadToGemini, extractJson, filePartFromGcsUri } from "./gem
 import { Type } from "@google/genai";
 import type { Schema } from "@google/genai";
 import { downloadFile } from "./storage.service.js";
+import { applyHunks } from "./diff-apply.service.js";
 import {
   CODE_ANALYSIS_UI_SYSTEM_PROMPT,
   CODE_ANALYSIS_PERF_SYSTEM_PROMPT,
@@ -62,7 +63,7 @@ export async function analyzeCode(
   const codePrompt = buildCodeAnalysisUserPrompt(req.files, req.userPrompt);
   userParts.push({ text: codePrompt });
 
-  // JSON Schema for constrained decoding — ensures proper string escaping
+  // JSON Schema for constrained decoding — no 'modified' field, hunks only
   const codeAnalysisSchema: Schema = {
     type: Type.OBJECT,
     properties: {
@@ -73,10 +74,9 @@ export async function analyzeCode(
           properties: {
             filePath: { type: Type.STRING },
             hunks: { type: Type.STRING },
-            modified: { type: Type.STRING },
             rationale: { type: Type.STRING },
           },
-          required: ["filePath", "hunks", "modified", "rationale"],
+          required: ["filePath", "hunks", "rationale"],
         },
       },
       summary: { type: Type.STRING },
@@ -107,7 +107,7 @@ export async function analyzeCode(
   const text = await generate({
     systemPrompt,
     userParts,
-    maxOutputTokens: 32768,
+    maxOutputTokens: 16384,
     temperature: 0.2,
     jsonMode: true,
     responseSchema: codeAnalysisSchema,
@@ -117,9 +117,23 @@ export async function analyzeCode(
   const parsed = extractJson(text);
   timing("JSON parsed OK");
 
+  // Build a lookup of original file content
+  const originalsByPath = new Map<string, string>();
+  for (const f of req.files) {
+    originalsByPath.set(f.path, f.content);
+  }
+
+  // Compute 'modified' server-side by applying hunks to originals
+  const patches = (parsed.patches ?? []).map((p: any) => {
+    const original = originalsByPath.get(p.filePath) ?? "";
+    const modified = original ? applyHunks(original, p.hunks ?? "") : (p.hunks ?? "");
+    return { ...p, modified };
+  });
+  timing(`Patches applied (${patches.length} files)`);
+
   return {
     requestId,
-    patches: parsed.patches ?? [],
+    patches,
     summary: parsed.summary ?? "",
     score: parsed.score,
     issues: parsed.issues ?? [],

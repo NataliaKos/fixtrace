@@ -5,27 +5,18 @@
  *
  *  Gemini returns raw PCM (16-bit LE, 24 kHz, mono). We prepend a standard
  *  44-byte RIFF/WAVE header so Web Audio API can consume it directly.
+ *
+ *  Uses the shared Gemini client (Vertex AI in prod, API key locally) via
+ *  gemini.service.ts — no duplicate client instantiation.
  * ─────────────────────────────────────────────────────────────────────────── */
 
-import { GoogleGenAI } from "@google/genai";
-import "dotenv/config";
+import { generateTts } from "./gemini.service.js";
 
-const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 export const DEFAULT_VOICE = "Puck";
 
 /** All built-in Gemini TTS voice names. */
 export const TTS_VOICES = ["Puck", "Kore", "Charon", "Fenrir", "Aoede", "Orbit", "Zephyr"] as const;
 export type TtsVoice = typeof TTS_VOICES[number];
-
-let _client: GoogleGenAI | undefined;
-function getClient(): GoogleGenAI {
-  if (!_client) {
-    const apiKey = process.env["GEMINI_API_KEY"];
-    if (!apiKey) throw new Error("GEMINI_API_KEY is not set in environment");
-    _client = new GoogleGenAI({ apiKey });
-  }
-  return _client;
-}
 
 /** Prepend a 44-byte RIFF/WAVE header to raw PCM bytes. */
 function addWavHeader(pcm: Buffer, sampleRate = 24_000, channels = 1, bitDepth = 16): Buffer {
@@ -59,25 +50,8 @@ function addWavHeader(pcm: Buffer, sampleRate = 24_000, channels = 1, bitDepth =
 export async function synthesizeToWav(text: string, voice: TtsVoice = DEFAULT_VOICE): Promise<string> {
   if (!text?.trim()) throw new Error("text must not be empty");
 
-  const ai = getClient();
-
-  const response = await ai.models.generateContent({
-    model: TTS_MODEL,
-    contents: [{ role: "user", parts: [{ text }] }],
-    config: {
-      responseModalities: ["AUDIO"],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: { voiceName: voice },
-        },
-      },
-    },
-  });
-
-  const inlineData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-  if (!inlineData?.data) throw new Error("TTS response contained no audio data");
-
-  const pcmBuffer = Buffer.from(inlineData.data, "base64");
+  const pcmBase64 = await generateTts({ text, voiceName: voice });
+  const pcmBuffer = Buffer.from(pcmBase64, "base64");
   const wavBuffer = addWavHeader(pcmBuffer);
   return wavBuffer.toString("base64");
 }

@@ -246,7 +246,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     this.dragX.set(0);
     this.dragY.set(0);
     this.isOpen.set(true);
-    this.liveAudio.connect('', 'ui');
+    this.liveAudio.connect('Puck', 'ui');
   }
 
   openWithContext(text: string, images: ContextImage[] = []): void {

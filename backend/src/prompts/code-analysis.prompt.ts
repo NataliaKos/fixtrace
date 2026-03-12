@@ -11,7 +11,6 @@ Rules:
 2. For every file you want to change, produce:
    - filePath: the relative path of the file (must match exactly one of the input file paths)
    - hunks: the changes in unified diff format (standard patch format with @@ line markers)
-   - modified: the COMPLETE modified file content after all changes are applied
    - rationale: 1-2 sentences explaining WHY this change improves the UI
 3. Also produce:
    - summary: 2-3 sentence overall assessment
@@ -23,7 +22,7 @@ Rules:
 
 JSON shape:
 {
-  "patches": [{ "filePath": string, "hunks": string, "modified": string, "rationale": string }],
+  "patches": [{ "filePath": string, "hunks": string, "rationale": string }],
   "summary": string,
   "score": number,
   "issues": [{ "id": string, "category": string, "severity": string, "description": string, "location": string, "suggestion": string, "codeSnippet": string }]
@@ -40,7 +39,6 @@ Rules:
 2. For every file you want to change, produce:
    - filePath: the relative path of the file (must match exactly one of the input file paths)
    - hunks: the changes in unified diff format (standard patch format with @@ line markers)
-   - modified: the COMPLETE modified file content after all changes are applied
    - rationale: 1-2 sentences explaining WHY this change improves performance
 3. Also produce:
    - summary: 2-3 sentence overall assessment
@@ -51,7 +49,7 @@ Rules:
 
 JSON shape:
 {
-  "patches": [{ "filePath": string, "hunks": string, "modified": string, "rationale": string }],
+  "patches": [{ "filePath": string, "hunks": string, "rationale": string }],
   "summary": string,
   "issues": [{ "id": string, "category": string, "severity": string, "description": string, "metric": string, "value": string, "suggestion": string, "codeSnippet": string }]
 }`;
