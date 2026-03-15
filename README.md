@@ -46,7 +46,7 @@ flowchart TB
         GCS[Cloud Storage\nfixtrace-uploads-*]
         GEMINI["Gemini 2.5 Flash\n(Vertex AI)"]
         LIVE["Gemini Live API\n(native audio)"]
-        IMAGEN[Imagen 3]
+        IMAGEN[Imagen 4]
         TTS_API["Gemini TTS\n2.5 Flash Preview"]
     end
 
@@ -101,7 +101,7 @@ User → Upload screenshot / trace / code
 |---------|-------------|
 | **📸 UI Review** | Upload a screenshot or video → get accessibility, UX, layout, contrast, and typography issues ranked by severity with a 0-100 quality score |
 | **⚡ Performance Debugger** | Upload a Lighthouse JSON or DevTools trace → get Core Web Vitals diagnosis, render/network/memory issues, and Angular-specific fixes |
-| **✨ UI Enhancement** | Describe what you want → Gemini generates an Imagen 3 design mockup + code patches to implement it |
+| **✨ UI Enhancement** | Describe what you want → Gemini generates an Imagen 4 design mockup + code patches to implement it |
 | **💻 Code Analysis** | Paste code, upload files, or import from GitHub → get unified-diff patches with rationale for UI or performance improvements |
 | **🎤 Live Voice Agent** | Talk to the AI in real time via WebSocket streaming audio. Gemini Live API provides sub-second bidirectional audio with native speech |
 | **🗣️ Text-to-Speech** | 7 voice options powered by Gemini 2.5 Flash TTS — responses play through a 3D animated avatar |
@@ -119,7 +119,7 @@ User → Upload screenshot / trace / code
 |-------|-----------|
 | Frontend | Angular 21 (standalone components, signals), Tailwind CSS v4, DaisyUI, Three.js |
 | Backend | Node.js 20, TypeScript, Express 5 |
-| AI Models | Gemini 2.5 Flash (text/vision), Gemini Live 2.5 Flash Native Audio (streaming), Gemini 2.5 Flash TTS (speech), Imagen 3 (image generation) |
+| AI Models | Gemini 2.5 Flash (text/vision), Gemini Live 2.5 Flash Native Audio (streaming), Gemini 2.5 Flash TTS (speech), Imagen 4 (image generation) |
 | AI SDK | Google GenAI SDK (`@google/genai` v1.41+) — supports both API key and Vertex AI auth |
 | Cloud | Google Cloud Run, Cloud Storage, Vertex AI, Firebase Hosting |
 | Code Editor | Monaco Editor (VS Code core) with diff view |
@@ -156,10 +156,12 @@ fixtrace/
 │       │   ├── gemini-voice.service.ts  # Chat-TTS + WAV playback
 │       │   ├── live-audio-ws.service.ts # WebSocket live audio streaming
 │       │   └── voice.service.ts         # Mic recording + audio level
-│       └── state/
+│       ├── state/
 │           ├── analyzer-state.service.ts    # Analysis results + mode + files
 │           ├── app-state.service.ts         # Theme (light/dark)
 │           └── live-session-state.service.ts # Chat session lifecycle
+│       └── models/
+│           └── interfaces.ts                # Shared TypeScript interfaces
 │
 ├── backend/                     # Express API + Gemini AI
 │   ├── Dockerfile               # Multi-stage Node.js 20 build
@@ -170,7 +172,7 @@ fixtrace/
 │       ├── routes/
 │       │   ├── upload.routes.ts       # File upload to GCS
 │       │   ├── ui-analyze.routes.ts   # UI screenshot/video analysis
-│       │   ├── ui-enhance.routes.ts   # UI enhancement (Imagen 3 + patches)
+│       │   ├── ui-enhance.routes.ts   # UI enhancement (Imagen 4 + patches)
 │       │   ├── perf-analyze.routes.ts # Performance trace analysis
 │       │   ├── code-analyze.routes.ts # Source code analysis
 │       │   ├── github.routes.ts       # GitHub repo clone
@@ -182,9 +184,10 @@ fixtrace/
 │       │   ├── gemini.service.ts      # Core Gemini SDK wrapper (Vertex AI + API key)
 │       │   ├── storage.service.ts     # GCS upload/download/signed URLs
 │       │   ├── ui-analysis.service.ts # UI analysis pipeline
-│       │   ├── ui-enhance.service.ts  # Enhancement pipeline (Gemini + Imagen 3)
+│       │   ├── ui-enhance.service.ts  # Enhancement pipeline (Gemini + Imagen 4)
 │       │   ├── perf-analysis.service.ts  # Perf analysis pipeline
 │       │   ├── code-analysis.service.ts  # Code analysis pipeline
+│       │   ├── diff-apply.service.ts  # Unified diff application to source files
 │       │   ├── live-session.service.ts   # In-memory chat session manager
 │       │   ├── github.service.ts      # Git clone + file extraction
 │       │   ├── chat-tts.service.ts    # Two-step: text gen + TTS
@@ -284,6 +287,86 @@ firebase deploy --only hosting
 
 ---
 
+## Testing Guide
+
+> **For hackathon judges:** the live deployment is fully functional — no API keys or GCP account required.
+
+### Live Demo
+
+| | URL |
+|---|---|
+| **Frontend** | https://fixtrace-hackathon.web.app |
+| **Backend health check** | https://fixtrace-backend-jinxtep3ra-uc.a.run.app/health |
+
+### Testing Each Feature
+
+#### 1. UI Review
+1. Go to the Analyzer page and select **UI Review** mode
+2. Upload any website screenshot (PNG / JPG / WebP) or screen recording (MP4 / WebM)
+3. Click **Analyze** — Gemini returns ranked accessibility, layout, and typography issues with severity scores and an overall 0–100 quality score
+4. Click any patch to open it in the **Monaco diff editor** and review the suggested change
+
+#### 2. Performance Debugger
+1. Select **Performance** mode
+2. Upload a Lighthouse JSON or Chrome DevTools performance trace
+   - **Lighthouse JSON:** Chrome DevTools → Lighthouse tab → Analyze page load → Export JSON
+   - **DevTools trace:** Chrome DevTools → Performance tab → Record → Save profile (`.json`)
+3. Click **Analyze** — returns Core Web Vitals diagnosis, render/network/memory bottlenecks, and Angular-specific fixes
+
+#### 3. UI Enhancement (Imagen 4)
+1. Select **Enhance** mode
+2. Optionally upload a screenshot for visual context
+3. Describe the desired change (e.g. *"Make the hero section more modern with a glassmorphism card"*)
+4. Gemini generates a **design mockup via Imagen 4** plus code patches to implement the changes
+
+#### 4. Code Analysis
+1. Paste code directly, upload source files, or enter a **public GitHub repo URL** to import
+2. Choose analysis focus: UI quality or performance
+3. Review unified-diff patches with per-change rationale
+
+#### 5. Live Voice Agent
+1. Open the **Chat Panel** (microphone icon, or it opens automatically after an analysis)
+2. Click the microphone button and speak — Gemini Live API streams bidirectional audio in real time
+3. The **3D avatar** lip-syncs the AI's spoken response
+4. Switch to text input at any time using the chat text field
+
+#### 6. Text-to-Speech & 3D Avatar
+1. In the Chat Panel, send a text message
+2. The AI response is spoken aloud through the **3D animated avatar** using Gemini TTS
+3. Use the voice selector in the chat panel to switch between 7 available voices
+
+### Running Unit Tests
+
+```bash
+cd frontend
+npm test      # Vitest + Angular TestBed
+```
+
+> Backend integration is validated through the deployment pipeline: Cloud Build runs a full Docker build and deploys to Cloud Run on every push to `main`, confirming the service starts and passes the `/health` check.
+
+### Local Full-Stack Setup
+
+See [Quick Start](#quick-start) for complete instructions. Minimum requirements:
+
+- Node.js 20+
+- A [Gemini API key](https://aistudio.google.com/apikey) (free tier works)
+- A GCS bucket for file uploads
+
+```bash
+# Terminal 1 — backend
+cd backend && npm install
+# Create backend/.env:
+#   GEMINI_API_KEY=<your-key>
+#   GCS_BUCKET_NAME=<your-bucket>
+npm run dev        # → http://localhost:8080
+
+# Terminal 2 — frontend
+cd frontend && npm install
+npm start          # → http://localhost:4200
+```
+
+---
+
 ## API Reference
 
 ### REST Endpoints
@@ -293,7 +376,7 @@ firebase deploy --only hosting
 | `GET` | `/health` | Health check | — |
 | `POST` | `/api/upload` | Upload file to GCS | `multipart: file` (max 50 MB) |
 | `POST` | `/api/ui-analyze` | AI UI/UX analysis | `{ fileId, gcsUri, mimeType, userPrompt? }` |
-| `POST` | `/api/ui-enhance` | AI UI enhancement + Imagen 3 | `{ fileId?, gcsUri?, mimeType?, userPrompt, files? }` |
+| `POST` | `/api/ui-enhance` | AI UI enhancement + Imagen 4 | `{ fileId?, gcsUri?, mimeType?, userPrompt, files? }` |
 | `POST` | `/api/perf-analyze` | AI performance analysis | `{ fileId, gcsUri, mimeType, userPrompt? }` |
 | `POST` | `/api/code-analyze` | AI code analysis (UI / perf) | `{ mode, files[], userPrompt?, fileId?, gcsUri?, mimeType? }` |
 | `POST` | `/api/github-clone` | Clone public repo | `{ repoUrl }` |
@@ -325,7 +408,7 @@ firebase deploy --only hosting
 | Text/Vision analysis | `gemini-2.5-flash` | Vertex AI (Cloud Run) / API key (local) |
 | Live streaming audio | `gemini-live-2.5-flash-native-audio` (Vertex AI) / `gemini-2.5-flash-native-audio-latest` (API key) | Vertex AI / AI Studio |
 | Text-to-Speech | `gemini-2.5-flash-preview-tts` | Vertex AI / AI Studio |
-| Image generation | Imagen 3 via `generateImage()` | Vertex AI / AI Studio |
+| Image generation | `imagen-4.0-generate-001` (Imagen 4) via `generateImage()` | Vertex AI / AI Studio |
 
 ---
 
@@ -349,7 +432,7 @@ Built for the **#GeminiLiveAgentChallenge** hackathon.
 - Uses **Gemini 2.5 Flash** for multimodal UI and performance analysis
 - Uses **Gemini Live 2.5 Flash Native Audio** for real-time bidirectional voice streaming
 - Uses **Gemini 2.5 Flash TTS** for text-to-speech with animated 3D avatar
-- Uses **Imagen 3** for AI-generated UI mockups
+- Uses **Imagen 4** for AI-generated UI mockups
 - Uses **Google GenAI SDK** (`@google/genai`) with dual auth (API key + Vertex AI)
 - Deployed on **Google Cloud Run** with **Cloud Storage** and **Firebase Hosting**
 - Infrastructure as Code with **Terraform** and **Cloud Build** CI/CD
